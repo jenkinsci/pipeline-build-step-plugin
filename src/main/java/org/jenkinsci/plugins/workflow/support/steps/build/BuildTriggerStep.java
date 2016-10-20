@@ -7,6 +7,7 @@ import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.Action;
 import hudson.util.FormValidation;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
     private boolean wait = true;
     private boolean propagate = true;
     private Integer quietPeriod;
+    private List<Action> actions;
 
     @DataBoundConstructor
     public BuildTriggerStep(String job) {
@@ -47,8 +49,18 @@ public class BuildTriggerStep extends AbstractStepImpl {
         return parameters;
     }
 
+    public List<Action> getActions() {
+        return actions;
+    }
+
+
+
     @DataBoundSetter public void setParameters(List<ParameterValue> parameters) {
         this.parameters = parameters;
+    }
+
+    @DataBoundSetter public void setActions(List<Action> actions) {
+        this.actions = actions;
     }
 
     public boolean getWait() {

@@ -63,6 +63,16 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             parameters = completeDefaultParameters(parameters, (Job) project);
             actions.add(new ParametersAction(parameters));
         }
+
+        List<Action>  passedActions = step.getActions();
+        if (passedActions != null){
+            for(Action action: passedActions){
+                actions.add(action);
+            }
+        }
+
+
+
         Integer quietPeriod = step.getQuietPeriod();
         // TODO use new convenience method in 1.621
         if (quietPeriod == null) {
