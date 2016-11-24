@@ -57,6 +57,11 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         if (project == null) {
             throw new AbortException("No parameterized job named " + job + " found");
         }
+		if (((hudson.model.AbstractProject) project).isDisabled()) {
+			listener.getLogger().println("Project: " + ModelHyperlinkNote.encodeTo(project) + " is disabled, therefore no build will be scheduled");
+			getContext().onSuccess(null);
+			return true;
+		}
         listener.getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
         node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
