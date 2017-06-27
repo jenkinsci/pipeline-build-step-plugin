@@ -8,6 +8,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import java.util.logging.Level;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 import java.util.logging.Logger;
@@ -29,6 +30,15 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     TaskListener taskListener = stepContext.get(TaskListener.class);
                     // encodeTo(Run) calls getDisplayName, which does not include the project name.
                     taskListener.getLogger().println("Starting building: " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()));
+                    FlowNode parentNode = stepContext.get(FlowNode.class);
+                    if (parentNode != null) {
+                        BuildInfoAction buildInfoAction = parentNode.getAction(BuildInfoAction.class);
+                        if (buildInfoAction == null) {
+                            parentNode.addAction(new BuildInfoAction(run.getParent().getFullName(), run.getNumber()));
+                        } else {
+                            buildInfoAction.addBuildInfo(run.getParent().getFullName(), run.getNumber());
+                        }
+                    }
                 } catch (Exception e) {
                     LOGGER.log(WARNING, null, e);
                 }

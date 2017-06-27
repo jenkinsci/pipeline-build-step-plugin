@@ -33,6 +33,8 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -69,20 +71,30 @@ public class BuildTriggerStepTest {
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build 'ds'\n" +
             "echo \"ds.result=${ds.result} ds.number=${ds.number}\"", true));
-        j.assertLogContains("ds.result=SUCCESS ds.number=1", j.buildAndAssertSuccess(us));
+        WorkflowRun usRun = j.buildAndAssertSuccess(us);
+        j.assertLogContains("ds.result=SUCCESS ds.number=1", usRun);
         // TODO JENKINS-28673 assert no warnings, as in StartupTest.noWarnings
         // (but first need to deal with `WARNING: Failed to instantiate optional component org.jenkinsci.plugins.workflow.steps.scm.SubversionStep$DescriptorImpl; skipping`)
         ds.getBuildByNumber(1).delete();
+
+        assertBuildInfoAction(usRun, "ds", 1);
     }
 
     @Issue("JENKINS-25851")
     @Test public void failingBuild() throws Exception {
-        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        ds.getBuildersList().add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
-        j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
+        WorkflowRun usRun = j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
+        assertBuildInfoAction(usRun, "ds", ds.getLastBuild().getNumber());
+
         us.setDefinition(new CpsFlowDefinition("echo \"ds.result=${build(job: 'ds', propagate: false).result}\"", true));
-        j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
+
+        usRun = j.buildAndAssertSuccess(us);
+        j.assertLogContains("ds.result=FAILURE", usRun);
+
+        assertBuildInfoAction(usRun, "ds", ds.getLastBuild().getNumber());
     }
 
     @SuppressWarnings("deprecation")
@@ -115,7 +127,10 @@ public class BuildTriggerStepTest {
                 "          build('test2');\n" +
                 "        })"), "\n"), true));
 
-        j.buildAndAssertSuccess(foo);
+        WorkflowRun usRun = j.buildAndAssertSuccess(foo);
+
+        assertBuildInfoAction(usRun, "test1", p1.getLastBuild().getNumber());
+        assertBuildInfoAction(usRun, "test2", p2.getLastBuild().getNumber());
     }
 
 
@@ -141,7 +156,11 @@ public class BuildTriggerStepTest {
         fb.getExecutor().interrupt();
 
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(fb));
-        j.assertBuildStatus(Result.FAILURE,q.get());
+
+        WorkflowRun usRun = q.get();
+        j.assertBuildStatus(Result.FAILURE, q.get());
+
+        assertBuildInfoAction(usRun, "test1", p.getLastBuild().getNumber());
     }
 
     @Test
@@ -419,5 +438,22 @@ public class BuildTriggerStepTest {
                 return new DummyMultiBranchProjectFactory();
             }
         }
+    }
+
+    private void assertBuildInfoAction(WorkflowRun workflowRun, String projectName, int buildNumber) {
+        FlowGraphWalker walker = new FlowGraphWalker(workflowRun.getExecution());
+
+        for(FlowNode step : walker) {
+            BuildInfoAction buildInfoAction = step.getAction(BuildInfoAction.class);
+            if (buildInfoAction != null) {
+                for (BuildInfoAction.BuildInfo buildInfo : buildInfoAction.getBuildInfoList()) {
+                    if (buildInfo.getBuildNumber() == buildNumber && buildInfo.getProjectName().equals(projectName)) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        throw new AssertionError("Didn't find expected buildInfoAction");
     }
 }
