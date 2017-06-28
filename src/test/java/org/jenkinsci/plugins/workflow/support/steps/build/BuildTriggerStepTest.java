@@ -13,6 +13,7 @@ import hudson.model.Label;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.TaskListener;
 import hudson.model.queue.QueueTaskFuture;
@@ -73,11 +74,12 @@ public class BuildTriggerStepTest {
             "echo \"ds.result=${ds.result} ds.number=${ds.number}\"", true));
         WorkflowRun usRun = j.buildAndAssertSuccess(us);
         j.assertLogContains("ds.result=SUCCESS ds.number=1", usRun);
+        assertBuildInfoAction(usRun, "ds", 1);
+
         // TODO JENKINS-28673 assert no warnings, as in StartupTest.noWarnings
         // (but first need to deal with `WARNING: Failed to instantiate optional component org.jenkinsci.plugins.workflow.steps.scm.SubversionStep$DescriptorImpl; skipping`)
         ds.getBuildByNumber(1).delete();
 
-        assertBuildInfoAction(usRun, "ds", 1);
     }
 
     @Issue("JENKINS-25851")
@@ -446,8 +448,8 @@ public class BuildTriggerStepTest {
         for(FlowNode step : walker) {
             BuildInfoAction buildInfoAction = step.getAction(BuildInfoAction.class);
             if (buildInfoAction != null) {
-                for (BuildInfoAction.BuildInfo buildInfo : buildInfoAction.getBuildInfoList()) {
-                    if (buildInfo.getBuildNumber() == buildNumber && buildInfo.getProjectName().equals(projectName)) {
+                for (Run child : buildInfoAction.getChildBuilds()) {
+                    if (child.getNumber() == buildNumber && child.getParent().getFullName().equals(projectName)) {
                         return;
                     }
                 }

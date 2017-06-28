@@ -1,40 +1,56 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import hudson.model.Job;
+import hudson.model.Run;
+import jenkins.model.Jenkins;
 import hudson.model.InvisibleAction;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 
 public class BuildInfoAction extends InvisibleAction {
-    private final List<BuildInfo> buildInfoList = new ArrayList<>();
+    private final Queue<BuildInfo> buildInfos = new ConcurrentLinkedQueue<>();
 
-    public BuildInfoAction(String projectName, int buildNumber) {
-        buildInfoList.add(new BuildInfo(projectName, buildNumber));
+    BuildInfoAction(String projectName, int buildNumber) {
+        buildInfos.add(new BuildInfo(projectName, buildNumber));
     }
 
-    public List<BuildInfo> getBuildInfoList() {
-        return buildInfoList;
+    public List<Run> getChildBuilds() {
+        List<Run> builds = new ArrayList<>();
+
+        for (BuildInfo buildInfo : buildInfos) {
+            if (buildInfo != null) {
+                Job job = Jenkins.getActiveInstance().getItemByFullName(buildInfo.getProjectName(), Job.class);
+                if (buildInfo.getBuildNumber() != 0) {
+                    builds.add((job != null) ? job.getBuildByNumber(buildInfo.getBuildNumber()) : null);
+                }
+            }
+        }
+
+        return builds;
     }
 
     public void addBuildInfo(String projectName, int buildNumber) {
-        buildInfoList.add(new BuildInfo(projectName, buildNumber));
+        buildInfos.add(new BuildInfo(projectName, buildNumber));
     }
 
-    static class BuildInfo {
+    private static class BuildInfo {
         private final String projectName;
         private final int buildNumber;
 
-        public BuildInfo(String projectName, int buildNumber) {
+        BuildInfo(String projectName, int buildNumber) {
             this.projectName = projectName;
             this.buildNumber = buildNumber;
         }
 
-        public String getProjectName() {
+        String getProjectName() {
             return projectName;
         }
 
-        public int getBuildNumber() {
+        int getBuildNumber() {
             return buildNumber;
         }
     }
