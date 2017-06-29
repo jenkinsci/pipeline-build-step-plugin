@@ -14,12 +14,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class BuildInfoAction extends InvisibleAction {
     private final Queue<BuildInfo> buildInfos = new ConcurrentLinkedQueue<>();
 
+    BuildInfoAction() {
+    }
+
     BuildInfoAction(String projectName, int buildNumber) {
         buildInfos.add(new BuildInfo(projectName, buildNumber));
     }
 
-    public List<Run> getChildBuilds() {
-        List<Run> builds = new ArrayList<>();
+    public List<Run<?, ?>> getChildBuilds() {
+        List<Run<?, ?>> builds = new ArrayList<>();
 
         for (BuildInfo buildInfo : buildInfos) {
             if (buildInfo != null) {

@@ -32,12 +32,8 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     taskListener.getLogger().println("Starting building: " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()));
                     FlowNode parentNode = stepContext.get(FlowNode.class);
                     if (parentNode != null) {
-                        BuildInfoAction buildInfoAction = parentNode.getAction(BuildInfoAction.class);
-                        if (buildInfoAction == null) {
-                            parentNode.addAction(new BuildInfoAction(run.getParent().getFullName(), run.getNumber()));
-                        } else {
-                            buildInfoAction.addBuildInfo(run.getParent().getFullName(), run.getNumber());
-                        }
+                        BuildInfoAction buildInfoAction = ensureBuildInfoAction(parentNode);
+                        buildInfoAction.addBuildInfo(run.getParent().getFullName(), run.getNumber());
                     }
                 } catch (Exception e) {
                     LOGGER.log(WARNING, null, e);
@@ -46,6 +42,20 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                 LOGGER.log(Level.FINE, "{0} unavailable in {1}", new Object[] {stepContext, run});
             }
         }
+    }
+
+    private BuildInfoAction ensureBuildInfoAction(final FlowNode parentNode) {
+        BuildInfoAction buildInfoAction = parentNode.getAction(BuildInfoAction.class);
+        if (buildInfoAction == null) {
+            synchronized (this) {
+                buildInfoAction = parentNode.getAction(BuildInfoAction.class);
+                if (buildInfoAction == null) {
+                    buildInfoAction = new BuildInfoAction();
+                    parentNode.addAction(buildInfoAction);
+                }
+            }
+        }
+        return buildInfoAction;
     }
 
     @Override
