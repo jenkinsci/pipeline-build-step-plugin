@@ -6,6 +6,7 @@ import jenkins.model.Jenkins;
 import hudson.model.InvisibleAction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,7 +23,11 @@ public class BuildInfoAction extends InvisibleAction {
     }
 
     public List<Run<?, ?>> getChildBuilds() {
-        List<Run<?, ?>> builds = new ArrayList<>();
+        if (buildInfos.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Run<?, ?>> builds = new ArrayList<>(buildInfos.size());
 
         for (BuildInfo buildInfo : buildInfos) {
             if (buildInfo != null) {
