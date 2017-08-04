@@ -1,6 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import hudson.model.Job;
+import hudson.model.Run;
 import jenkins.model.Jenkins;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,10 +12,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.same;
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -36,7 +38,9 @@ public class BuildInfoActionTest {
     @Test
     public void testConcurrentAccess() throws Exception {
         Job item = Mockito.mock(Job.class);
-        when(jenkins.getItemByFullName(any(String.class), same(Job.class))).thenReturn(item);
+        Run run = Mockito.mock(Run.class);
+        Mockito.when(jenkins.getItemByFullName(any(String.class), same(Job.class))).thenReturn(item);
+        Mockito.when(item.getBuildByNumber(anyInt())).thenReturn(run);
 
         BuildInfoAction buildInfoAction = new BuildInfoAction("firstOne", 1);
 
@@ -62,6 +66,46 @@ public class BuildInfoActionTest {
         }
 
         assertEquals(501, buildInfoAction.getChildBuilds().size());
+    }
+
+    @Test
+    public void testSkipNonExistingProject() {
+        Job item = Mockito.mock(Job.class);
+        Run run = Mockito.mock(Run.class);
+
+        String existingProject = "existingProject";
+        String nonExistingProject = "nonExistingProject";
+
+        Mockito.when(jenkins.getItemByFullName(same(existingProject), same(Job.class))).thenReturn(item);
+        Mockito.when(jenkins.getItemByFullName(same(nonExistingProject), same(Job.class))).thenReturn(null);
+        Mockito.when(item.getBuildByNumber(anyInt())).thenReturn(run);
+        Mockito.when(run.getParent()).thenReturn(item);
+
+        BuildInfoAction buildInfoAction = new BuildInfoAction(existingProject, 1);
+        buildInfoAction.addBuildInfo(nonExistingProject, 2);
+
+        assertEquals(1, buildInfoAction.getChildBuilds().size());
+        assertEquals(item, buildInfoAction.getChildBuilds().get(0).getParent());
+    }
+
+    @Test
+    public void testSkipNonExistingBuild() {
+        Job item = Mockito.mock(Job.class);
+        Run run = Mockito.mock(Run.class);
+
+        int existingNumber = 1;
+        int nonExistingNumber = 2;
+
+        Mockito.when(jenkins.getItemByFullName(anyString(), same(Job.class))).thenReturn(item);
+        Mockito.when(item.getBuildByNumber(same(existingNumber))).thenReturn(run);
+        Mockito.when(item.getBuildByNumber(same(nonExistingNumber))).thenReturn(null);
+        Mockito.when(run.getNumber()).thenReturn(existingNumber);
+
+        BuildInfoAction buildInfoAction = new BuildInfoAction("project", existingNumber);
+        buildInfoAction.addBuildInfo("project", nonExistingNumber);
+
+        assertEquals(1, buildInfoAction.getChildBuilds().size());
+        assertEquals(existingNumber, buildInfoAction.getChildBuilds().get(0).getNumber());
     }
 
     private Runnable createRunnable(final String name, final BuildInfoAction action) {

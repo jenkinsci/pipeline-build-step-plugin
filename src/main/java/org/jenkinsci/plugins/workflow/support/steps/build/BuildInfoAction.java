@@ -1,39 +1,30 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import hudson.model.InvisibleAction;
 import hudson.model.Job;
 import hudson.model.Run;
 import jenkins.model.Jenkins;
-import hudson.model.InvisibleAction;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-
 public class BuildInfoAction extends InvisibleAction {
     private final Queue<BuildInfo> buildInfos = new ConcurrentLinkedQueue<>();
-
-    BuildInfoAction() {
-    }
 
     BuildInfoAction(String projectName, int buildNumber) {
         buildInfos.add(new BuildInfo(projectName, buildNumber));
     }
 
     public List<Run<?, ?>> getChildBuilds() {
-        if (buildInfos.isEmpty()) {
-            return Collections.emptyList();
-        }
-
         List<Run<?, ?>> builds = new ArrayList<>(buildInfos.size());
 
         for (BuildInfo buildInfo : buildInfos) {
             if (buildInfo != null) {
-                Job job = Jenkins.getActiveInstance().getItemByFullName(buildInfo.getProjectName(), Job.class);
-                if (buildInfo.getBuildNumber() != 0) {
-                    builds.add((job != null) ? job.getBuildByNumber(buildInfo.getBuildNumber()) : null);
+                Run run = getBuildByNameAndNumber(buildInfo.getProjectName(), buildInfo.getBuildNumber());
+                if (run != null) {
+                    builds.add(run);
                 }
             }
         }
@@ -41,7 +32,15 @@ public class BuildInfoAction extends InvisibleAction {
         return builds;
     }
 
-    public void addBuildInfo(String projectName, int buildNumber) {
+    private Run getBuildByNameAndNumber(String jobName, int buildNumber) {
+        Job job = Jenkins.getActiveInstance().getItemByFullName(jobName, Job.class);
+        if (job != null) {
+            return job.getBuildByNumber(buildNumber);
+        }
+        return null;
+    }
+
+    void addBuildInfo(String projectName, int buildNumber) {
         buildInfos.add(new BuildInfo(projectName, buildNumber));
     }
 

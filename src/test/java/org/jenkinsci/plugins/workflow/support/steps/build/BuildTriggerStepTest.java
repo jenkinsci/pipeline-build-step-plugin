@@ -40,8 +40,9 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -87,7 +88,6 @@ public class BuildTriggerStepTest {
         // TODO JENKINS-28673 assert no warnings, as in StartupTest.noWarnings
         // (but first need to deal with `WARNING: Failed to instantiate optional component org.jenkinsci.plugins.workflow.steps.scm.SubversionStep$DescriptorImpl; skipping`)
         ds.getBuildByNumber(1).delete();
-
     }
 
     @Issue("JENKINS-25851")
@@ -451,9 +451,10 @@ public class BuildTriggerStepTest {
     }
 
     private void assertBuildInfoAction(WorkflowRun workflowRun, String projectName, int buildNumber) {
-        FlowGraphWalker walker = new FlowGraphWalker(workflowRun.getExecution());
+        List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(workflowRun.getExecution(),
+                new NodeStepTypePredicate("build"));
 
-        for(FlowNode step : walker) {
+        for(FlowNode step : coreStepNodes) {
             BuildInfoAction buildInfoAction = step.getAction(BuildInfoAction.class);
             if (buildInfoAction != null) {
                 for (Run child : buildInfoAction.getChildBuilds()) {

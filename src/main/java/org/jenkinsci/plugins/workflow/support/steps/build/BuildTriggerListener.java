@@ -31,10 +31,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     // encodeTo(Run) calls getDisplayName, which does not include the project name.
                     taskListener.getLogger().println("Starting building: " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()));
                     FlowNode parentNode = stepContext.get(FlowNode.class);
-                    if (parentNode != null) {
-                        BuildInfoAction buildInfoAction = ensureBuildInfoAction(parentNode);
-                        buildInfoAction.addBuildInfo(run.getParent().getFullName(), run.getNumber());
-                    }
+                    addBuildAction(parentNode, run);
                 } catch (Exception e) {
                     LOGGER.log(WARNING, null, e);
                 }
@@ -44,18 +41,18 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
         }
     }
 
-    private BuildInfoAction ensureBuildInfoAction(final FlowNode parentNode) {
-        BuildInfoAction buildInfoAction = parentNode.getAction(BuildInfoAction.class);
-        if (buildInfoAction == null) {
-            synchronized (this) {
-                buildInfoAction = parentNode.getAction(BuildInfoAction.class);
-                if (buildInfoAction == null) {
-                    buildInfoAction = new BuildInfoAction();
-                    parentNode.addAction(buildInfoAction);
-                }
+    private void addBuildAction(final FlowNode parentNode, Run run) {
+        BuildInfoAction buildInfoAction;
+        synchronized (this) {
+            buildInfoAction = parentNode.getAction(BuildInfoAction.class);
+            if (buildInfoAction == null) {
+                buildInfoAction = new BuildInfoAction(run.getParent().getFullName(), run.getNumber());
+                parentNode.addAction(buildInfoAction);
+                return;
             }
         }
-        return buildInfoAction;
+
+        buildInfoAction.addBuildInfo(run.getParent().getFullName(), run.getNumber());
     }
 
     @Override
