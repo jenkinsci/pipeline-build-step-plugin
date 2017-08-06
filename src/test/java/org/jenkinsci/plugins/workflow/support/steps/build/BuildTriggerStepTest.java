@@ -15,11 +15,11 @@ import hudson.model.Label;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
-import hudson.security.AuthorizationStrategy;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,6 +40,9 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.graphanalysis.DepthFirstScanner;
+import org.jenkinsci.plugins.workflow.graphanalysis.NodeStepTypePredicate;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -78,7 +81,10 @@ public class BuildTriggerStepTest {
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build 'ds'\n" +
             "echo \"ds.result=${ds.result} ds.number=${ds.number}\"", true));
-        j.assertLogContains("ds.result=SUCCESS ds.number=1", j.buildAndAssertSuccess(us));
+        WorkflowRun usRun = j.buildAndAssertSuccess(us);
+        j.assertLogContains("ds.result=SUCCESS ds.number=1", usRun);
+        assertBuildInfoAction(usRun, "ds", 1);
+
         // TODO JENKINS-28673 assert no warnings, as in StartupTest.noWarnings
         // (but first need to deal with `WARNING: Failed to instantiate optional component org.jenkinsci.plugins.workflow.steps.scm.SubversionStep$DescriptorImpl; skipping`)
         ds.getBuildByNumber(1).delete();
@@ -86,12 +92,19 @@ public class BuildTriggerStepTest {
 
     @Issue("JENKINS-25851")
     @Test public void failingBuild() throws Exception {
-        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        ds.getBuildersList().add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
-        j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
+        WorkflowRun usRun = j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
+        assertBuildInfoAction(usRun, "ds", ds.getLastBuild().getNumber());
+
         us.setDefinition(new CpsFlowDefinition("echo \"ds.result=${build(job: 'ds', propagate: false).result}\"", true));
-        j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
+
+        usRun = j.buildAndAssertSuccess(us);
+        j.assertLogContains("ds.result=FAILURE", usRun);
+
+        assertBuildInfoAction(usRun, "ds", ds.getLastBuild().getNumber());
     }
 
     @SuppressWarnings("deprecation")
@@ -124,7 +137,10 @@ public class BuildTriggerStepTest {
                 "          build('test2');\n" +
                 "        })"), "\n"), true));
 
-        j.buildAndAssertSuccess(foo);
+        WorkflowRun usRun = j.buildAndAssertSuccess(foo);
+
+        assertBuildInfoAction(usRun, "test1", p1.getLastBuild().getNumber());
+        assertBuildInfoAction(usRun, "test2", p2.getLastBuild().getNumber());
     }
 
 
@@ -150,7 +166,11 @@ public class BuildTriggerStepTest {
         fb.getExecutor().interrupt();
 
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(fb));
-        j.assertBuildStatus(Result.FAILURE,q.get());
+
+        WorkflowRun usRun = q.get();
+        j.assertBuildStatus(Result.FAILURE, q.get());
+
+        assertBuildInfoAction(usRun, "test1", p.getLastBuild().getNumber());
     }
 
     @Test
@@ -430,6 +450,24 @@ public class BuildTriggerStepTest {
         }
     }
 
+    private void assertBuildInfoAction(WorkflowRun workflowRun, String projectName, int buildNumber) {
+        List<FlowNode> coreStepNodes = new DepthFirstScanner().filteredNodes(workflowRun.getExecution(),
+                new NodeStepTypePredicate("build"));
+
+        for(FlowNode step : coreStepNodes) {
+            BuildInfoAction buildInfoAction = step.getAction(BuildInfoAction.class);
+            if (buildInfoAction != null) {
+                for (Run child : buildInfoAction.getChildBuilds()) {
+                    if (child.getNumber() == buildNumber && child.getParent().getFullName().equals(projectName)) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        throw new AssertionError("Didn't find expected buildInfoAction");
+    }
+
     @Issue("SECURITY-433")
     @Test public void permissions() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -451,5 +489,4 @@ public class BuildTriggerStepTest {
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().grant(Jenkins.READ, Computer.BUILD).everywhere().to("dev").grant(Item.DISCOVER).onItems(ds).to("dev"));
         j.assertLogContains("Please login to access job ds", j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
-
 }
