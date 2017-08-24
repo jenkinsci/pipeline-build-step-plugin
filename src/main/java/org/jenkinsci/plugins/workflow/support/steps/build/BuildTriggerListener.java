@@ -41,6 +41,17 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     @SuppressWarnings("deprecation") // TODO 2.30+ use removeAction
     public void onCompleted(Run<?,?> run, @Nonnull TaskListener listener) {
         for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
+            try {
+                StepContext stepContext = trigger.context;
+                TaskListener taskListener = stepContext.get(TaskListener.class);
+                if (stepContext != null && stepContext.isReady()) {
+                    for (String log : run.getLog(1000)) {
+                        taskListener.getLogger().println(log);
+                    }
+                }
+            } catch (Exception e){
+                LOGGER.log(WARNING, null, e);
+            }
             LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, trigger.context});
             if (!trigger.propagate || run.getResult() == Result.SUCCESS) {
                 if (trigger.interruption == null) {
