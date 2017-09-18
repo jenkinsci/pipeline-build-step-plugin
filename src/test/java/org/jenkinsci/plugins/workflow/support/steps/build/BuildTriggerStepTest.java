@@ -315,8 +315,8 @@ public class BuildTriggerStepTest {
 
     @Issue("JENKINS-28063")
     @Test public void coalescedQueue() throws Exception {
-        j.jenkins.setQuietPeriod(1);
         FreeStyleProject ds = j.createFreeStyleProject("ds");
+        ds.setQuietPeriod(3);
         ds.setConcurrentBuild(true);
         ds.getBuildersList().add(new SleepBuilder(3000));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
