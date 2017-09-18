@@ -19,7 +19,6 @@ import hudson.model.StringParameterDefinition;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
-import hudson.security.AuthorizationStrategy;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -316,17 +315,17 @@ public class BuildTriggerStepTest {
 
     @Issue("JENKINS-28063")
     @Test public void coalescedQueue() throws Exception {
+        j.jenkins.setQuietPeriod(1);
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.setConcurrentBuild(true);
         ds.getBuildersList().add(new SleepBuilder(3000));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("echo \"triggered #${build('ds').number}\"", true));
-        QueueTaskFuture<WorkflowRun> us1F = us.scheduleBuild2(0);
-        us1F.waitForStart(); // make sure we do not coalesce the us `Queue.Item`s
-        QueueTaskFuture<WorkflowRun> us2F = us.scheduleBuild2(0);
-        WorkflowRun us1 = us1F.get();
+        WorkflowRun us1 = us.scheduleBuild2(0).waitForStart();
         assertEquals(1, us1.getNumber());
-        j.assertLogContains("triggered #1", us1);
+        j.waitForMessage("Scheduling project: ds", us1);
+        QueueTaskFuture<WorkflowRun> us2F = us.scheduleBuild2(0);
+        j.assertLogContains("triggered #1", j.waitForCompletion(us1));
         WorkflowRun us2 = us2F.get();
         assertEquals(2, us2.getNumber());
         j.assertLogContains("triggered #1", us2);
