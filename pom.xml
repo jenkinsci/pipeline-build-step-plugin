@@ -40,7 +40,7 @@
     <properties>
         <jenkins.version>1.642.3</jenkins.version>
         <scm-api.version>2.0.7</scm-api.version>
-        <workflow-step-api-plugin.version>2.13-20170904.014626-1</workflow-step-api-plugin.version> <!-- TODO https://github.com/jenkinsci/workflow-step-api-plugin/pull/30 -->
+        <workflow-step-api-plugin.version>2.13</workflow-step-api-plugin.version>
     </properties>
     <dependencies>
         <dependency>
