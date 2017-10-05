@@ -8,11 +8,10 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import java.util.logging.Level;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-
 import java.util.logging.Logger;
-import static java.util.logging.Level.WARNING;
 import javax.annotation.Nonnull;
+import jenkins.util.Timer;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 @Extension
 public class BuildTriggerListener extends RunListener<Run<?,?>>{
@@ -30,7 +29,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     // encodeTo(Run) calls getDisplayName, which does not include the project name.
                     taskListener.getLogger().println("Starting building: " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()));
                 } catch (Exception e) {
-                    LOGGER.log(WARNING, null, e);
+                    LOGGER.log(Level.WARNING, null, e);
                 }
             } else {
                 LOGGER.log(Level.FINE, "{0} unavailable in {1}", new Object[] {stepContext, run});
@@ -57,9 +56,13 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     }
 
     @Override
-    public void onDeleted(Run<?,?> run) {
-        for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
-            trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted"));
+    public void onDeleted(final Run<?,?> run) {
+        for (final BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
+            Timer.get().submit(new Runnable() {
+                @Override public void run() {
+                    trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted"));
+                }
+            });
         }
     }
 }
