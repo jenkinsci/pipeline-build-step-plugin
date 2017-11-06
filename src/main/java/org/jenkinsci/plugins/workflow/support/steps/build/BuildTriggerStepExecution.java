@@ -170,7 +170,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @Override
-    public void stop(Throwable cause) {
+    public void stop(Throwable cause) throws Exception {
         StepContext context = getContext();
         Jenkins jenkins = Jenkins.getInstance();
         if (jenkins == null) {
@@ -208,7 +208,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         if (!interrupted) {
-            context.onFailure(cause);
+            super.stop(cause);
         }
     }
     private static boolean maybeInterrupt(Executor e, Throwable cause, StepContext context) {
