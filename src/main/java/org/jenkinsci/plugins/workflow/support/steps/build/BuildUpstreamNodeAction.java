@@ -6,7 +6,15 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 
 import java.util.Objects;
 
-// TODO: Javadocs for all this
+/**
+ * Attached to newly-created builds in order to point back to the triggering FlowNode.
+ *
+ * We annotate the downstream build instead of upstream in order to support no-wait builds,
+ * because the downstream run id is not available when they're still queued.
+ *
+ * Needed for Blue Ocean to annotate the correct step.
+ * @see: https://issues.jenkins-ci.org/browse/JENKINS-38339
+ */
 public class BuildUpstreamNodeAction extends InvisibleAction {
 
     private final String upstreamNodeId;
