@@ -13,7 +13,7 @@ import java.util.Objects;
  * because the downstream run id is not available when they're still queued.
  *
  * Needed for Blue Ocean to annotate the correct step.
- * @see: https://issues.jenkins-ci.org/browse/JENKINS-38339
+ * See <a href="https://issues.jenkins-ci.org/browse/JENKINS-38339">#JENKINS-38339</a>
  */
 public class BuildUpstreamNodeAction extends InvisibleAction {
 
