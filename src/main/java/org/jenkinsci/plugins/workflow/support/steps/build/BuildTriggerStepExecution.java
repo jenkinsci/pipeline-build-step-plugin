@@ -24,15 +24,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
 import org.jenkinsci.plugins.workflow.actions.LabelAction;
@@ -40,6 +31,16 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
@@ -65,18 +66,23 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             // TODO find some way of allowing ComputedFolders to hook into the listener code
             throw new AbortException("Waiting for non-job items is not supported");
         }
+
+        List<Action> actions = new ArrayList<>();
+        actions.add(new CauseAction(new Cause.UpstreamCause(invokingRun)));
+        actions.add(new BuildUpstreamNodeAction(node, invokingRun));
+
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
             listener.getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
             node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
-            List<Action> actions = new ArrayList<>();
+
             if (step.getWait()) {
                 StepContext context = getContext();
                 actions.add(new BuildTriggerAction(context, step.isPropagate()));
                 LOGGER.log(Level.FINER, "scheduling a build of {0} from {1}", new Object[]{project, context});
             }
-            actions.add(new CauseAction(new Cause.UpstreamCause(invokingRun)));
+
             List<ParameterValue> parameters = step.getParameters();
             if (parameters != null) {
                 parameters = completeDefaultParameters(parameters, (Job) project);
@@ -103,13 +109,12 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             Queue.Task task = (Queue.Task) item;
             listener.getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
             node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
-            List<Action> actions = new ArrayList<>();
             if (step.getWait()) {
                 StepContext context = getContext();
                 actions.add(new BuildTriggerAction(context, step.isPropagate()));
                 LOGGER.log(Level.FINER, "scheduling a build of {0} from {1}", new Object[]{task, context});
             }
-            actions.add(new CauseAction(new Cause.UpstreamCause(invokingRun)));
+
             Integer quietPeriod = step.getQuietPeriod();
             if (quietPeriod == null) {
                 try {

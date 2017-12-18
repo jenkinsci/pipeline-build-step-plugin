@@ -39,6 +39,8 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
@@ -61,7 +63,7 @@ import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
 
 public class BuildTriggerStepTest {
-    
+
     @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
     @Rule public JenkinsRule j = new JenkinsRule();
     @Rule public LoggerRule logging = new LoggerRule();
@@ -91,6 +93,30 @@ public class BuildTriggerStepTest {
         j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
         us.setDefinition(new CpsFlowDefinition("echo \"ds.result=${build(job: 'ds', propagate: false).result}\"", true));
         j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
+    }
+
+    @Issue("JENKINS-38339")
+    @Test public void upstreamNodeAction() throws Exception {
+        FreeStyleProject downstream = j.createFreeStyleProject("downstream");
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+
+        upstream.setDefinition(new CpsFlowDefinition("build 'downstream'", true));
+        j.assertBuildStatus(Result.SUCCESS, upstream.scheduleBuild2(0));
+
+        WorkflowRun lastUpstreamRun = upstream.getLastBuild();
+        FreeStyleBuild lastDownstreamRun = downstream.getLastBuild();
+
+        final FlowExecution execution = lastUpstreamRun.getExecution();
+        List<FlowNode> nodes = execution.getCurrentHeads();
+        assertEquals("node count", 1, nodes.size());
+        FlowNode headNode = nodes.get(0);
+
+        List<BuildUpstreamNodeAction> actions = lastDownstreamRun.getActions(BuildUpstreamNodeAction.class);
+        assertEquals("action count", 1, actions.size());
+
+        BuildUpstreamNodeAction action = actions.get(0);
+        assertEquals("correct upstreamRunId", action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId());
+        assertNotNull("valid upstreamNodeId", execution.getNode(action.getUpstreamNodeId()));
     }
 
     @SuppressWarnings("deprecation")
