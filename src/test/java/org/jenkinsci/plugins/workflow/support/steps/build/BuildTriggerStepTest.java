@@ -12,6 +12,8 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Label;
+import hudson.model.ParameterValue;
+import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
@@ -477,4 +479,37 @@ public class BuildTriggerStepTest {
         j.assertLogContains("Please login to access job ds", j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
 
+    @Issue("JENKINS-48632")
+    @Test
+    public void parameterDescriptions() throws Exception {
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDefinition(new CpsFlowDefinition("properties([\n" +
+                "  parameters([\n" +
+                "    booleanParam(defaultValue: true, description: 'flag description', name: 'flag'),\n" +
+                "    string(defaultValue: 'default string', description: 'strParam description', name: 'strParam')\n" +
+                "  ])\n" +
+                "])\n", true));
+        // Define the parameters
+        j.buildAndAssertSuccess(ds);
+
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [booleanParam(name: 'flag', value: false)]\n", true));
+        j.buildAndAssertSuccess(us);
+
+        j.waitUntilNoActivity();
+
+        WorkflowRun r = ds.getBuildByNumber(2);
+        assertNotNull(r);
+
+        ParametersAction action = r.getAction(ParametersAction.class);
+        assertNotNull(action);
+
+        ParameterValue flagValue = action.getParameter("flag");
+        assertNotNull(flagValue);
+        assertEquals("flag description", flagValue.getDescription());
+
+        ParameterValue strValue = action.getParameter("strParam");
+        assertNotNull(strValue);
+        assertEquals("strParam description", strValue.getDescription());
+    }
 }
