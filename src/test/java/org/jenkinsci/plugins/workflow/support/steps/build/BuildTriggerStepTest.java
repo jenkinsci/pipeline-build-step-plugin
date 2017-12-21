@@ -290,12 +290,12 @@ public class BuildTriggerStepTest {
         Cause.UpstreamCause cause = ds.getBuildByNumber(1).getCause(Cause.UpstreamCause.class);
         assertNotNull(cause);
         assertEquals(us1, cause.getUpstreamRun());
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'release']]", true));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'branch', value: 'release')]", true));
         j.buildAndAssertSuccess(us);
         assertEquals("2", env.getEnvVars().get("BUILD_NUMBER"));
         assertEquals("release", env.getEnvVars().get("branch"));
         assertEquals("false", env.getEnvVars().get("extra")); //
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'release'], [$class: 'BooleanParameterValue', name: 'extra', value: true]]", true));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'branch', value: 'release'), booleanParam(name: 'extra', value: true)]", true));
         j.buildAndAssertSuccess(us);
         assertEquals("3", env.getEnvVars().get("BUILD_NUMBER"));
         assertEquals("release", env.getEnvVars().get("branch"));
@@ -327,7 +327,7 @@ public class BuildTriggerStepTest {
     @Test public void buildVariables() throws Exception {
         j.createFreeStyleProject("ds").addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("param", "default")));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("echo \"build var: ${build(job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'param', value: 'override']]).buildVariables.param}\"", true));
+        us.setDefinition(new CpsFlowDefinition("echo \"build var: ${build(job: 'ds', parameters: [string(name: 'param', value: 'override')]).buildVariables.param}\"", true));
         j.assertLogContains("build var: override", j.buildAndAssertSuccess(us));
     }
 
@@ -375,7 +375,7 @@ public class BuildTriggerStepTest {
             "for (int i = 0; i < 5; i++) {\n" +
             "  def which = \"${i}\"\n" +
             "  branches[\"branch${i}\"] = {\n" +
-            "    build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'which', value: which]]\n" +
+            "    build job: 'ds', parameters: [string(name: 'which', value: which)]\n" +
             "  }\n" +
             "}\n" +
             "parallel branches", true));
@@ -398,7 +398,7 @@ public class BuildTriggerStepTest {
     @Issue("JENKINS-31897")
     @Test public void defaultParameters() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'PARAM1', value: 'first']] "));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'PARAM1', value: 'first')]"));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("PARAM1", "p1"), new StringParameterDefinition("PARAM2", "p2")));
         // TODO use params when updating workflow-cps/workflow-job
