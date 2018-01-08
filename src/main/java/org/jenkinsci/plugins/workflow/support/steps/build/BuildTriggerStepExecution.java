@@ -167,7 +167,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                         }
                     } else {
                         // Get the description of specified parameters here. UI submission of parameters uses formatted description.
-                        allParameters.get(pDef.getName()).setDescription(pDef.getFormattedDescription());
+                        allParameters.get(pDef.getName()).setDescription(pDef.getDescription());
                     }
                 }
             }
