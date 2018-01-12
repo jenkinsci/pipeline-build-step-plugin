@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -38,7 +37,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -151,26 +152,27 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     }
 
     private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) {
-        List<ParameterValue> completeListOfParameters = Lists.newArrayList(parameters);
-        List<String> names = Lists.transform(parameters, new Function<ParameterValue, String>() {
-            @Override public String apply(ParameterValue input) {
-                return input.getName();
-            }
-        });
+        Map<String,ParameterValue> allParameters = new HashMap<>();
+        for (ParameterValue pv : parameters) {
+            allParameters.put(pv.getName(), pv);
+        }
         if (project != null) {
             ParametersDefinitionProperty pdp = project.getProperty(ParametersDefinitionProperty.class);
             if (pdp != null) {
                 for (ParameterDefinition pDef : pdp.getParameterDefinitions()) {
-                    if (!names.contains(pDef.getName())) {
+                    if (!allParameters.containsKey(pDef.getName())) {
                         ParameterValue defaultP = pDef.getDefaultParameterValue();
                         if (defaultP != null) {
-                            completeListOfParameters.add(defaultP);
+                            allParameters.put(defaultP.getName(), defaultP);
                         }
+                    } else {
+                        // Get the description of specified parameters here. UI submission of parameters uses formatted description.
+                        allParameters.get(pDef.getName()).setDescription(pDef.getDescription());
                     }
                 }
             }
         }
-        return completeListOfParameters;
+        return Lists.newArrayList(allParameters.values());
     }
 
     @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")

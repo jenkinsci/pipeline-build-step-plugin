@@ -12,6 +12,8 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Label;
+import hudson.model.ParameterValue;
+import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
@@ -288,12 +290,12 @@ public class BuildTriggerStepTest {
         Cause.UpstreamCause cause = ds.getBuildByNumber(1).getCause(Cause.UpstreamCause.class);
         assertNotNull(cause);
         assertEquals(us1, cause.getUpstreamRun());
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'release']]", true));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'branch', value: 'release')]", true));
         j.buildAndAssertSuccess(us);
         assertEquals("2", env.getEnvVars().get("BUILD_NUMBER"));
         assertEquals("release", env.getEnvVars().get("branch"));
         assertEquals("false", env.getEnvVars().get("extra")); //
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'release'], [$class: 'BooleanParameterValue', name: 'extra', value: true]]", true));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'branch', value: 'release'), booleanParam(name: 'extra', value: true)]", true));
         j.buildAndAssertSuccess(us);
         assertEquals("3", env.getEnvVars().get("BUILD_NUMBER"));
         assertEquals("release", env.getEnvVars().get("branch"));
@@ -325,7 +327,7 @@ public class BuildTriggerStepTest {
     @Test public void buildVariables() throws Exception {
         j.createFreeStyleProject("ds").addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("param", "default")));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("echo \"build var: ${build(job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'param', value: 'override']]).buildVariables.param}\"", true));
+        us.setDefinition(new CpsFlowDefinition("echo \"build var: ${build(job: 'ds', parameters: [string(name: 'param', value: 'override')]).buildVariables.param}\"", true));
         j.assertLogContains("build var: override", j.buildAndAssertSuccess(us));
     }
 
@@ -373,7 +375,7 @@ public class BuildTriggerStepTest {
             "for (int i = 0; i < 5; i++) {\n" +
             "  def which = \"${i}\"\n" +
             "  branches[\"branch${i}\"] = {\n" +
-            "    build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'which', value: which]]\n" +
+            "    build job: 'ds', parameters: [string(name: 'which', value: which)]\n" +
             "  }\n" +
             "}\n" +
             "parallel branches", true));
@@ -396,7 +398,7 @@ public class BuildTriggerStepTest {
     @Issue("JENKINS-31897")
     @Test public void defaultParameters() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [[$class: 'StringParameterValue', name: 'PARAM1', value: 'first']] "));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'PARAM1', value: 'first')]"));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("PARAM1", "p1"), new StringParameterDefinition("PARAM2", "p2")));
         // TODO use params when updating workflow-cps/workflow-job
@@ -477,4 +479,37 @@ public class BuildTriggerStepTest {
         j.assertLogContains("Please login to access job ds", j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
 
+    @Issue("JENKINS-48632")
+    @Test
+    public void parameterDescriptions() throws Exception {
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDefinition(new CpsFlowDefinition("properties([\n" +
+                "  parameters([\n" +
+                "    booleanParam(defaultValue: true, description: 'flag description', name: 'flag'),\n" +
+                "    string(defaultValue: 'default string', description: 'strParam description', name: 'strParam')\n" +
+                "  ])\n" +
+                "])\n", true));
+        // Define the parameters
+        j.buildAndAssertSuccess(ds);
+
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [booleanParam(name: 'flag', value: false)]\n", true));
+        j.buildAndAssertSuccess(us);
+
+        j.waitUntilNoActivity();
+
+        WorkflowRun r = ds.getBuildByNumber(2);
+        assertNotNull(r);
+
+        ParametersAction action = r.getAction(ParametersAction.class);
+        assertNotNull(action);
+
+        ParameterValue flagValue = action.getParameter("flag");
+        assertNotNull(flagValue);
+        assertEquals("flag description", flagValue.getDescription());
+
+        ParameterValue strValue = action.getParameter("strParam");
+        assertNotNull(strValue);
+        assertEquals("strParam description", strValue.getDescription());
+    }
 }
