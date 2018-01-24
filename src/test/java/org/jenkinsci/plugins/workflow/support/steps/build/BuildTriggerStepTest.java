@@ -34,6 +34,7 @@ import jenkins.model.Jenkins;
 import jenkins.scm.api.SCMHeadEvent;
 import jenkins.scm.api.SCMSource;
 import jenkins.scm.impl.mock.MockSCMController;
+import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.apache.commons.lang.StringUtils;
@@ -418,16 +419,15 @@ public class BuildTriggerStepTest {
         j.assertBuildStatusSuccess(j.waitForCompletion(us1));
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     @Issue("JENKINS-38887")
     public void triggerOrgFolder() throws Exception {
         try (MockSCMController c = MockSCMController.create()) {
             c.createRepository("foo");
             WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-            us.setDefinition(new CpsFlowDefinition("build job:'ds', wait:false"));
+            us.setDefinition(new CpsFlowDefinition("build job:'ds', wait:false", true));
             OrganizationFolder ds = j.jenkins.createProject(OrganizationFolder.class, "ds");
-            ds.getSCMNavigators().add(new MockSCMNavigator(c, true, false, false));
+            ds.getSCMNavigators().add(new MockSCMNavigator(c, new MockSCMDiscoverBranches()));
             ds.getProjectFactories().add(new DummyMultiBranchProjectFactory());
             j.waitUntilNoActivity();
             assertThat(ds.getComputation().getResult(), nullValue());
