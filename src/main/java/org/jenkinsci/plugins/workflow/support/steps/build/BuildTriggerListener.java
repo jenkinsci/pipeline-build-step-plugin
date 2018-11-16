@@ -49,7 +49,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     trigger.context.onFailure(trigger.interruption);
                 }
             } else {
-                trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " completed with status " + run.getResult() + " (propagate: false to ignore)"));
+                trigger.context.onFailure(new AbortException(ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed with status " + run.getResult() + " (propagate: false to ignore)"));
             }
         }
         run.getActions().removeAll(run.getActions(BuildTriggerAction.class));
