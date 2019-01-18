@@ -37,8 +37,8 @@ public class BuildTriggerStepRestartTest extends Assert {
                               FreeStyleProject p1 = story.j.createFreeStyleProject("test1");
                               WorkflowJob foo = story.j.jenkins.createProject(WorkflowJob.class, "foo");
                               foo.setDefinition(new CpsFlowDefinition("build 'test1'", true));
-                              QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
-                              WorkflowRun b = q.getStartCondition().get();
+                              WorkflowRun b = foo.scheduleBuild2(0).waitForStart();
+                              story.j.waitForMessage("Scheduling project", b);
                               CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
                               e.waitForSuspension();
                               assertFreeStyleProjectsInQueue(1);
