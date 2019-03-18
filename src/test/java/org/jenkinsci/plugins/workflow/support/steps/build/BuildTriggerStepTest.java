@@ -193,7 +193,8 @@ public class BuildTriggerStepTest {
 
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
 
-        WorkflowRun b = q.getStartCondition().get();
+        WorkflowRun b = foo.scheduleBuild2(0).waitForStart();
+        j.waitForMessage("Scheduling project", b);
         CpsFlowExecution e = (CpsFlowExecution) b.getExecutionPromise().get();
         e.waitForSuspension();
 
