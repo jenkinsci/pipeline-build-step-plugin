@@ -8,6 +8,7 @@ import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
 import hudson.model.Cause;
 import hudson.model.CauseAction;
+import hudson.model.ChoiceParameterDefinition;
 import hudson.model.Computer;
 import hudson.model.Describable;
 import hudson.model.Executor;
@@ -151,7 +152,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
     }
 
-    private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) {
+    private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) throws AbortException {
         Map<String,ParameterValue> allParameters = new HashMap<>();
         for (ParameterValue pv : parameters) {
             allParameters.put(pv.getName(), pv);
@@ -166,6 +167,13 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             allParameters.put(defaultP.getName(), defaultP);
                         }
                     } else {
+                        if (pDef instanceof ChoiceParameterDefinition) {
+                            ParameterValue pv = allParameters.get(pDef.getName());
+                            if (!((ChoiceParameterDefinition)pDef).getChoices().contains(pv.getValue())) {
+                                throw new AbortException("Value for choice parameter '" + pDef.getName() + "' is '" + pv.getValue() + "', "
+                                        + "but valid choices are " + ((ChoiceParameterDefinition)pDef).getChoices());
+                            }
+                        }
                         // Get the description of specified parameters here. UI submission of parameters uses formatted description.
                         allParameters.get(pDef.getName()).setDescription(pDef.getDescription());
                     }
