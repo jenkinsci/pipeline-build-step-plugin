@@ -513,4 +513,22 @@ public class BuildTriggerStepTest {
         assertNotNull(strValue);
         assertEquals("strParam description", strValue.getDescription());
     }
+
+    @Issue("JENKINS-52038")
+    @Test
+    public void invalidChoiceParameterValue() throws Exception {
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDefinition(new CpsFlowDefinition("properties([\n" +
+                "  parameters([\n" +
+                "    choice(name:'letter', description: 'a letter', choices: ['a', 'b'].join(\"\\n\"))\n" +
+                "  ])\n" +
+                "])\n", true));
+        // Define the parameters
+        j.buildAndAssertSuccess(ds);
+
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'letter', value: 'c')]\n", true));
+        j.assertLogContains("Value for choice parameter 'letter' is 'c', but valid choices are [a, b]",
+                j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
+    }
 }
