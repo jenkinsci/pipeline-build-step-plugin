@@ -50,7 +50,8 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     trigger.context.onFailure(trigger.interruption);
                 }
             } else {
-                trigger.context.onFailure(new FlowInterruptedException(run.getResult(), new DownstreamFailureCause(run)));
+                Result result = run.getResult();
+                trigger.context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, new DownstreamFailureCause(run)));
             }
         }
         run.getActions().removeAll(run.getActions(BuildTriggerAction.class));
