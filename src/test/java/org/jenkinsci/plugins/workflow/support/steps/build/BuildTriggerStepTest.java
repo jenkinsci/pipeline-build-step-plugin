@@ -2,8 +2,11 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Launcher;
+import hudson.model.AbstractBuild;
 import hudson.model.Action;
 import hudson.model.BooleanParameterDefinition;
+import hudson.model.BuildListener;
 import hudson.model.Cause;
 import hudson.model.Computer;
 import hudson.model.Executor;
@@ -62,6 +65,7 @@ import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.MockFolder;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.SleepBuilder;
+import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
 
@@ -178,7 +182,21 @@ public class BuildTriggerStepTest {
         fb.getExecutor().interrupt();
 
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(fb));
-        j.assertBuildStatus(Result.FAILURE,q.get());
+        j.assertBuildStatus(Result.ABORTED, q.get());
+    }
+
+    @Issue("JENKINS-49073")
+    @Test public void downstreamUnstable() throws Exception {
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        ds.getBuildersList().add(new TestBuilder() {
+            @Override public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+                build.setResult(Result.UNSTABLE);
+                return true;
+            }
+        });
+        WorkflowJob us = j.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
+        j.assertBuildStatus(Result.UNSTABLE, us.scheduleBuild2(0));
     }
 
     @Test
