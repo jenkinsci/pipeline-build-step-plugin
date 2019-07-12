@@ -11,6 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jenkins.util.Timer;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 @Extension
@@ -49,7 +50,8 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     trigger.context.onFailure(trigger.interruption);
                 }
             } else {
-                trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " completed with status " + run.getResult() + " (propagate: false to ignore)"));
+                Result result = run.getResult();
+                trigger.context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, new DownstreamFailureCause(run)));
             }
         }
         run.getActions().removeAll(run.getActions(BuildTriggerAction.class));
