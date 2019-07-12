@@ -6,6 +6,7 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.Action;
 import hudson.model.BooleanParameterDefinition;
+import hudson.model.BooleanParameterValue;
 import hudson.model.BuildListener;
 import hudson.model.Cause;
 import hudson.model.Computer;
@@ -21,6 +22,7 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
@@ -41,10 +43,12 @@ import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.Symbol;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.SnippetizerTester;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -548,5 +552,17 @@ public class BuildTriggerStepTest {
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'letter', value: 'c')]\n", true));
         j.assertLogContains("Value for choice parameter 'letter' is 'c', but valid choices are [a, b]",
                 j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
+    }
+
+    @Test public void buildTriggerStep() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        BuildTriggerStep step = new BuildTriggerStep("downstream");
+        st.assertRoundTrip(step, "build 'downstream'");
+        step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
+        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        } else { // TODO 2.x delete
+            st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
+        }
     }
 }
