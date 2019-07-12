@@ -554,15 +554,12 @@ public class BuildTriggerStepTest {
                 j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
 
-    @Test public void buildTriggerStep() throws Exception {
+    @Test public void snippetizer() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         BuildTriggerStep step = new BuildTriggerStep("downstream");
         st.assertRoundTrip(step, "build 'downstream'");
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
-        if (StringParameterDefinition.DescriptorImpl.class.isAnnotationPresent(Symbol.class)) {
-            st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
-        } else { // TODO 2.x delete
-            st.assertRoundTrip(step, "build job: 'downstream', parameters: [[$class: 'StringParameterValue', name: 'branch', value: 'default'], [$class: 'BooleanParameterValue', name: 'correct', value: true]]");
-        }
+        // Note: This does not actually test the format of the JSON produced by the snippet generator for parameters.
+        st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
     }
 }
