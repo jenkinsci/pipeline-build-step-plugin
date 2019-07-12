@@ -590,4 +590,9 @@ public class BuildTriggerStepTest {
         FreeStyleProject us = j.jenkins.createProject(FreeStyleProject.class, "us0");
         st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds0'}", "build 'ds0'", us.getAbsoluteUrl() + "configure");
     }
+
+    @Test
+    public void buildStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+    }
 }
