@@ -86,6 +86,43 @@ public class BuildTriggerStep extends AbstractStepImpl {
             super(BuildTriggerStepExecution.class);
         }
 
+        // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
+        // using the snippet generator does not match what would be neccessary for databinding to work automatically.
+        // For non-snippet generator use, this is unnecessary. Somewhat surprisingly,
+        // `SnippetizerTester.assertRoundTrip(BuildTriggerStep.class)` does not actually test this behavior.
+        @Override public Step newInstance(StaplerRequest req, JSONObject formData) throws FormException {
+            BuildTriggerStep step = (BuildTriggerStep) super.newInstance(req, formData);
+            // Cf. ParametersDefinitionProperty._doBuild:
+            Object parameter = formData.get("parameter");
+            JSONArray params = parameter != null ? JSONArray.fromObject(parameter) : null;
+            if (params != null) {
+                Job<?,?> context = StaplerReferer.findItemFromRequest(Job.class);
+                Job<?,?> job = Jenkins.getActiveInstance().getItem(step.getJob(), context, Job.class);
+                if (job != null) {
+                    ParametersDefinitionProperty pdp = job.getProperty(ParametersDefinitionProperty.class);
+                    if (pdp != null) {
+                        List<ParameterValue> values = new ArrayList<ParameterValue>();
+                        for (Object o : params) {
+                            JSONObject jo = (JSONObject) o;
+                            String name = jo.getString("name");
+                            ParameterDefinition d = pdp.getParameterDefinition(name);
+                            if (d == null) {
+                                throw new IllegalArgumentException("No such parameter definition: " + name);
+                            }
+                            ParameterValue parameterValue = d.createValue(req, jo);
+                            if (parameterValue != null) {
+                                values.add(parameterValue);
+                            } else {
+                                throw new IllegalArgumentException("Cannot retrieve the parameter value: " + name);
+                            }
+                        }
+                        step.setParameters(values);
+                    }
+                }
+            }
+            return step;
+        }
+
         @Override
         public String getFunctionName() {
             return "build";
