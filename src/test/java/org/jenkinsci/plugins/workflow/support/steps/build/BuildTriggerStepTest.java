@@ -6,6 +6,7 @@ import hudson.Launcher;
 import hudson.model.AbstractBuild;
 import hudson.model.Action;
 import hudson.model.BooleanParameterDefinition;
+import hudson.model.BooleanParameterValue;
 import hudson.model.BuildListener;
 import hudson.model.Cause;
 import hudson.model.Computer;
@@ -21,6 +22,7 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
@@ -45,6 +47,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.cps.SnippetizerTester;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -548,5 +551,48 @@ public class BuildTriggerStepTest {
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'letter', value: 'c')]\n", true));
         j.assertLogContains("Value for choice parameter 'letter' is 'c', but valid choices are [a, b]",
                 j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
+    }
+
+    @Test public void snippetizerRoundTrip() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        BuildTriggerStep step = new BuildTriggerStep("downstream");
+        st.assertRoundTrip(step, "build 'downstream'");
+        step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
+        // Note: This does not actually test the format of the JSON produced by the snippet generator for parameters, see generateSnippet* for tests of that behavior.
+        st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+    }
+
+    @Issue("JENKINS-26093")
+    @Test public void generateSnippetForBuildTrigger() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        MockFolder d1 = j.createFolder("d1");
+        FreeStyleProject ds = d1.createProject(FreeStyleProject.class, "ds");
+        MockFolder d2 = j.createFolder("d2");
+        WorkflowJob us = d2.createProject(WorkflowJob.class, "us");
+        ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", ""), new BooleanParameterDefinition("flag", false, "")));
+        String snippet = "build job: '../d1/ds', parameters: [string(name: 'key', value: 'stuff'), booleanParam(name: 'flag', value: true)]";
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'../d1/ds', 'parameter': [{'name':'key', 'value':'stuff'}, {'name':'flag', 'value':true}]}", snippet, us.getAbsoluteUrl() + "configure");
+    }
+
+    @Issue("JENKINS-29739")
+    @Test public void generateSnippetForBuildTriggerSingle() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        FreeStyleProject ds = j.jenkins.createProject(FreeStyleProject.class, "ds1");
+        FreeStyleProject us = j.jenkins.createProject(FreeStyleProject.class, "us1");
+        ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("key", "")));
+        String snippet = "build job: 'ds1', parameters: [string(name: 'key', value: 'stuff')]";
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", snippet, us.getAbsoluteUrl() + "configure");
+    }
+
+    @Test public void generateSnippetForBuildTriggerNone() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        FreeStyleProject ds = j.jenkins.createProject(FreeStyleProject.class, "ds0");
+        FreeStyleProject us = j.jenkins.createProject(FreeStyleProject.class, "us0");
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds0'}", "build 'ds0'", us.getAbsoluteUrl() + "configure");
+    }
+
+    @Test
+    public void buildStepDocs() throws Exception {
+        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
     }
 }

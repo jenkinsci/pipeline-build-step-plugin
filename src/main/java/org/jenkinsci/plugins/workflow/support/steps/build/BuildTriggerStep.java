@@ -86,6 +86,9 @@ public class BuildTriggerStep extends AbstractStepImpl {
             super(BuildTriggerStepExecution.class);
         }
 
+        // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
+        // using the snippet generator does not match what would be neccessary for databinding to work automatically.
+        // For non-snippet generator use, this is unnecessary.
         @Override public Step newInstance(StaplerRequest req, JSONObject formData) throws FormException {
             BuildTriggerStep step = (BuildTriggerStep) super.newInstance(req, formData);
             // Cf. ParametersDefinitionProperty._doBuild:
