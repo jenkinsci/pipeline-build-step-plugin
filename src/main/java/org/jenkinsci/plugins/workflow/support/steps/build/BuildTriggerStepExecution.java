@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
@@ -183,11 +182,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         return Lists.newArrayList(allParameters.values());
     }
 
-    @SuppressFBWarnings(value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE", justification="TODO 1.653+ switch to Jenkins.getInstanceOrNull")
     @Override
     public void stop(Throwable cause) throws Exception {
         StepContext context = getContext();
-        Jenkins jenkins = Jenkins.getInstance();
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null) {
             context.onFailure(cause);
             return;

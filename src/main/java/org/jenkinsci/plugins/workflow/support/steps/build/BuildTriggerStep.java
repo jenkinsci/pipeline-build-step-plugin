@@ -173,12 +173,12 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 }
             }
 
-            if (container == null || container == Jenkins.getInstance()) {
-                new Visitor("").onItemGroup(Jenkins.getInstance());
+            if (container == null || container == Jenkins.getInstanceOrNull()) {
+                new Visitor("").onItemGroup(Jenkins.getInstanceOrNull());
             } else {
                 new Visitor("").onItemGroup(container);
                 if (value.startsWith("/"))
-                    new Visitor("/").onItemGroup(Jenkins.getInstance());
+                    new Visitor("/").onItemGroup(Jenkins.getInstanceOrNull());
 
                 for (StringBuilder p = new StringBuilder("../"); value.startsWith(p.toString()); p .append("../")) {
                     container = ((Item) container).getParent();
