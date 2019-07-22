@@ -138,7 +138,7 @@ public class BuildTriggerStepTest {
 
         MockFolder dir2 = j.createFolder("dir2");
         WorkflowJob upstream = dir2.createProject(WorkflowJob.class, "upstream");
-        upstream.setDefinition(new CpsFlowDefinition("build '../dir1/downstream'"));
+        upstream.setDefinition(new CpsFlowDefinition("build '../dir1/downstream'", true));
 
         j.buildAndAssertSuccess(upstream);
         assertEquals(1, downstream.getBuilds().size());
@@ -169,7 +169,7 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n")));
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n"), true));
 
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
@@ -208,7 +208,7 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n")));
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n"), true));
 
         j.jenkins.setNumExecutors(0); //should force freestyle build to remain in the queue?
 
@@ -291,9 +291,9 @@ public class BuildTriggerStepTest {
     @SuppressWarnings("deprecation")
     @Test public void triggerWorkflow() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build 'ds'"));
+        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
-        ds.setDefinition(new CpsFlowDefinition("echo 'OK'"));
+        ds.setDefinition(new CpsFlowDefinition("echo 'OK'", true));
         j.buildAndAssertSuccess(us);
         assertEquals(1, ds.getBuilds().size());
     }
@@ -305,7 +305,7 @@ public class BuildTriggerStepTest {
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("branch", "master"), new BooleanParameterDefinition("extra", false, null)));
         CaptureEnvironmentBuilder env = new CaptureEnvironmentBuilder();
         ds.getBuildersList().add(env);
-        us.setDefinition(new CpsFlowDefinition("build 'ds'"));
+        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
         WorkflowRun us1 = j.buildAndAssertSuccess(us);
         assertEquals("1", env.getEnvVars().get("BUILD_NUMBER"));
         assertEquals("master", env.getEnvVars().get("branch"));
@@ -329,7 +329,7 @@ public class BuildTriggerStepTest {
     @Test public void noWait() throws Exception {
         j.createFreeStyleProject("ds").setAssignedLabel(Label.get("nonexistent"));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false"));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
         j.buildAndAssertSuccess(us);
     }
 
@@ -337,7 +337,7 @@ public class BuildTriggerStepTest {
         j.createFreeStyleProject("ds");
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         // wait: true also fails as expected w/o fix, just more slowly (test timeout):
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false"));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
         j.assertLogContains("Failed to trigger build of ds", j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
     @TestExtension("rejectedStart") public static final class QDH extends Queue.QueueDecisionHandler {
@@ -421,11 +421,11 @@ public class BuildTriggerStepTest {
     @Issue("JENKINS-31897")
     @Test public void defaultParameters() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'PARAM1', value: 'first')]"));
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'PARAM1', value: 'first')]", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("PARAM1", "p1"), new StringParameterDefinition("PARAM2", "p2")));
         // TODO use params when updating workflow-cps/workflow-job
-        ds.setDefinition(new CpsFlowDefinition("echo \"${PARAM1} - ${PARAM2}\""));
+        ds.setDefinition(new CpsFlowDefinition("echo \"${PARAM1} - ${PARAM2}\"", true));
         j.buildAndAssertSuccess(us);
         j.assertLogContains("first - p2", ds.getLastBuild());
     }
