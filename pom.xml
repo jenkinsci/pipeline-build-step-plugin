@@ -9,7 +9,7 @@
     </parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>pipeline-build-step</artifactId>
-    <version>2.10-SNAPSHOT</version>
+    <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Build Step</name>
     <url>https://wiki.jenkins.io/display/JENKINS/Pipeline+Build+Step+Plugin</url>
@@ -23,7 +23,7 @@
         <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
-      <tag>HEAD</tag>
+      <tag>${scmTag}</tag>
   </scm>
     <repositories>
         <repository>
@@ -38,6 +38,8 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
+        <revision>2.10</revision>
+        <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.121.1</jenkins.version>
         <java.level>8</java.level>
         <scm-api.version>2.2.7</scm-api.version>
