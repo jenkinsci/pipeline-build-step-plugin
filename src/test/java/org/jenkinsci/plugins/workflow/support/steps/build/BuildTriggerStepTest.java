@@ -189,17 +189,25 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-49073")
-    @Test public void downstreamUnstable() throws Exception {
-        FreeStyleProject ds = j.createFreeStyleProject("ds");
+    @Test public void downstreamResult() throws Exception {
+        downstreamResult(Result.SUCCESS);
+        downstreamResult(Result.UNSTABLE);
+        downstreamResult(Result.FAILURE);
+        downstreamResult(Result.NOT_BUILT);
+        downstreamResult(Result.ABORTED);
+    }
+
+    private void downstreamResult(Result result) throws Exception {
+        FreeStyleProject ds = j.createFreeStyleProject();
         ds.getBuildersList().add(new TestBuilder() {
             @Override public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
-                build.setResult(Result.UNSTABLE);
+                build.setResult(result);
                 return true;
             }
         });
-        WorkflowJob us = j.createProject(WorkflowJob.class, "us");
-        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
-        j.assertBuildStatus(Result.UNSTABLE, us.scheduleBuild2(0));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        us.setDefinition(new CpsFlowDefinition(String.format("build '%s'", ds.getName()), true));
+        j.assertBuildStatus(result, us.scheduleBuild2(0));
     }
 
     @Test
