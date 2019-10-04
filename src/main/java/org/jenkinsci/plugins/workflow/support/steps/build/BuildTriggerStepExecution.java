@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
+import hudson.Util;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
 import hudson.model.Cause;
@@ -18,9 +19,12 @@ import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
@@ -167,15 +171,31 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             allParameters.put(defaultP.getName(), defaultP);
                         }
                     } else {
+                        String description = Util.fixNull(pDef.getDescription());
                         if (pDef instanceof ChoiceParameterDefinition) {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (!((ChoiceParameterDefinition)pDef).getChoices().contains(pv.getValue())) {
                                 throw new AbortException("Value for choice parameter '" + pDef.getName() + "' is '" + pv.getValue() + "', "
                                         + "but valid choices are " + ((ChoiceParameterDefinition)pDef).getChoices());
                             }
+                        } else if (pDef instanceof PasswordParameterDefinition) {
+                            ParameterValue pv = allParameters.get(pDef.getName());
+                            if (!(pv instanceof PasswordParameterValue)) {
+                                if (pv instanceof StringParameterValue) {
+                                    String desiredValue = (String) pv.getValue();
+                                    listener.getLogger().println(String.format("There is a mismatch on the parameters between what the target build expected and what was provided. Converting '%s' to password type", pv.getName()));
+                                    description = Messages._BuildTriggerStepExecution_passwordConverted() + description;
+                                    ParameterValue convertedValue = ((PasswordParameterDefinition) pDef).createValue(desiredValue);
+                                    allParameters.put(pDef.getName(), convertedValue);
+                                } else {
+                                    throw new AbortException(String.format(
+                                            "Value for password parameter '%s' is of a non-convertible type '%s'. Please use password as parameter type.", 
+                                            pDef.getName(), pv.getClass().getSimpleName()));
+                                }
+                            }
                         }
                         // Get the description of specified parameters here. UI submission of parameters uses formatted description.
-                        allParameters.get(pDef.getName()).setDescription(pDef.getDescription());
+                        allParameters.get(pDef.getName()).setDescription(description);
                     }
                 }
             }
