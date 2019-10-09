@@ -10,6 +10,8 @@ import hudson.model.PasswordParameterValue;
 import hudson.model.Result;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
+import hudson.model.TextParameterDefinition;
+import hudson.model.TextParameterValue;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
@@ -148,20 +150,16 @@ public class BuildTriggerStepExecutionTest {
     }
 
     @Test
-    public void buildAnotherJob_configuredWithDefaultParameters_withProposedParameters_butNonConvertibleTypes() throws Exception {
+    public void buildAnotherJob_configuredWithDefaultParameters_booleanConversion() throws Exception {
         WorkflowJob parent = j.jenkins.createProject(WorkflowJob.class, "parent");
         FreeStyleProject child = j.createFreeStyleProject("child");
         child.addProperty(new ParametersDefinitionProperty(
-                new StringParameterDefinition("login", "default-login", null),
-                new PasswordParameterDefinition("pwd", "default-password", null),
-                new ChoiceParameterDefinition("type", new String[]{"choice1", "choice2"}, null)
+                new PasswordParameterDefinition("pwd", "default-password", null)
         ));
 
         parent.setDefinition(new CpsFlowDefinition("build job: 'child', parameters: [" +
-                "string(name: 'login', value: 'my-login'), " +
-                // boolean instead of password => error
-                "booleanParam(name: 'pwd', value: true), " +
-                "string(name: 'type', value: 'choice2')" +
+                // boolean instead of password
+                "booleanParam(name: 'pwd', value: true)" +
                 "]", true));
 
         assertNull(child.getLastSuccessfulBuild());
@@ -171,7 +169,38 @@ public class BuildTriggerStepExecutionTest {
         // was not called at all
         assertNull(child.getLastBuild());
 
-        j.assertLogContains("Value for password parameter 'pwd' is of a non-convertible type 'BooleanParameterValue'. Please use password as parameter type.", parent.getLastBuild());
+        j.assertLogContains("Value for parameter 'pwd' is of a non-convertible type 'BooleanParameterValue'.", parent.getLastBuild());
+    }
+
+    @Test
+    public void buildAnotherJob_configuredWithDefaultParameters_text() throws Exception {
+        WorkflowJob parent = j.jenkins.createProject(WorkflowJob.class, "parent");
+        FreeStyleProject child = j.createFreeStyleProject("child");
+        child.addProperty(new ParametersDefinitionProperty(
+                new TextParameterDefinition("desc1", "default-description-one", null),
+                new TextParameterDefinition("desc2", "default-description-two", null),
+                new TextParameterDefinition("desc3", "default-description-three", null)
+        ));
+
+        parent.setDefinition(new CpsFlowDefinition("build job: 'child', parameters: [" +
+                "string(name: 'desc1', value: 'my-desc1'), " +
+                "text(name: 'desc2', value: 'my-desc2')" +
+                "]", true));
+
+        assertNull(child.getLastSuccessfulBuild());
+
+        j.buildAndAssertSuccess(parent);
+        assertNotNull(child.getLastSuccessfulBuild());
+
+        ParametersAction parametersAction = child.getLastSuccessfulBuild().getAction(ParametersAction.class);
+        List<ParameterValue> allParameters = parametersAction.getAllParameters();
+        assertThat(allParameters, contains(
+                // no conversion from StringVal to TextVal
+                new ParameterValueLikeMatcher(new StringParameterValue("desc1", "my-desc1")),
+                new ParameterValueLikeMatcher(new TextParameterValue("desc2", "my-desc2")),
+                // default value for TextDef is a StringVal
+                new ParameterValueLikeMatcher(new StringParameterValue("desc3", "default-description-three"))
+        ));
     }
 
     private static class ParameterValueLikeMatcher extends TypeSafeMatcher<ParameterValue> {

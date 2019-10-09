@@ -24,6 +24,8 @@ import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.SimpleParameterDefinition;
+import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.queue.QueueTaskFuture;
@@ -178,20 +180,26 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                                 throw new AbortException("Value for choice parameter '" + pDef.getName() + "' is '" + pv.getValue() + "', "
                                         + "but valid choices are " + ((ChoiceParameterDefinition)pDef).getChoices());
                             }
-                        } else if (pDef instanceof PasswordParameterDefinition) {
+                        } else if (pDef instanceof StringParameterDefinition) {
+                            // no conversion needed in such case, either for StringDef or TextDef
+                        } else if (pDef instanceof SimpleParameterDefinition) {
                             ParameterValue pv = allParameters.get(pDef.getName());
-                            if (!(pv instanceof PasswordParameterValue)) {
-                                if (pv instanceof StringParameterValue) {
-                                    String desiredValue = (String) pv.getValue();
-                                    listener.getLogger().println(String.format("There is a mismatch on the parameters between what the target build expected and what was provided. Converting '%s' to password type", pv.getName()));
+                            if (pv instanceof StringParameterValue) {
+                                String desiredValue = (String) pv.getValue();
+                                if (pDef instanceof PasswordParameterDefinition) {
                                     description = Messages._BuildTriggerStepExecution_passwordConverted() + description;
-                                    ParameterValue convertedValue = ((PasswordParameterDefinition) pDef).createValue(desiredValue);
-                                    allParameters.put(pDef.getName(), convertedValue);
+                                    listener.getLogger().println(String.format("There is a mismatch on the parameters between what the target build expected and what was provided. Converting '%s' to password type.", pv.getName()));
                                 } else {
-                                    throw new AbortException(String.format(
-                                            "Value for password parameter '%s' is of a non-convertible type '%s'. Please use password as parameter type.", 
-                                            pDef.getName(), pv.getClass().getSimpleName()));
+                                    listener.getLogger().println(String.format("There is a mismatch on the parameters between what the target build expected and what was provided. Converting '%s' to satisfy '%s'.", pv.getName(), pDef.getClass().getSimpleName()));
                                 }
+                                ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue(desiredValue);
+                                allParameters.put(pDef.getName(), convertedValue);
+                            } else if (pv instanceof PasswordParameterValue && pDef instanceof PasswordParameterDefinition) {
+                                // no conversion needed in such case
+                            } else {
+                                throw new AbortException(String.format(
+                                        "Value for parameter '%s' is of a non-convertible type '%s'. Please use string or password as parameter type depending on the situation.",
+                                        pDef.getName(), pv.getClass().getSimpleName()));
                             }
                         }
                         // Get the description of specified parameters here. UI submission of parameters uses formatted description.
