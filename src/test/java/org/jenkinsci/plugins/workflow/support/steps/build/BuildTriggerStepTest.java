@@ -19,8 +19,10 @@ import hudson.model.Label;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
 import hudson.model.Queue;
 import hudson.model.Result;
+import hudson.model.Run;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
@@ -71,6 +73,7 @@ import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
+import static org.hamcrest.Matchers.equalTo;
 
 public class BuildTriggerStepTest {
 
@@ -594,5 +597,50 @@ public class BuildTriggerStepTest {
     @Test
     public void buildStepDocs() throws Exception {
         SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+    }
+
+    @Test public void automaticParameterConversion() throws Exception {
+        WorkflowJob ds = j.createProject(WorkflowJob.class);
+        ds.addProperty(new ParametersDefinitionProperty(
+                new PasswordParameterDefinition("password", "default", "description"),
+                new BooleanParameterDefinition("boolean", false, "description")
+        ));
+        ds.setDefinition(new CpsFlowDefinition(
+                "echo('Password: ' + params.password)\n" +
+                "echo('Boolean: ' + params.boolean)\n", true));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        String def = "build(job: '" + ds.getName() + "', parameters: [%s])";
+
+        // A password parameter passed as a string parameter is converted.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'password', value: 'secret')"), true));
+        WorkflowRun b1 = j.buildAndAssertSuccess(us);
+        j.assertLogContains("The parameter 'password' did not have the type expected", b1);
+        assertThat(getParameter(ds.getBuildByNumber(1), "password").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us.getName() + " #1")));
+
+        // A password parameter passed as a text parameter is converted.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "text(name: 'password', value: 'secret')"), true));
+        WorkflowRun b2 = j.buildAndAssertSuccess(us);
+        j.assertLogContains("The parameter 'password' did not have the type expected", b2);
+        assertThat(getParameter(ds.getBuildByNumber(2), "password").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us.getName() + " #2")));
+
+        // A password parameter passed as a password parameter is not converted.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "password(name: 'password', value: 'secret')"), true));
+        WorkflowRun b3 = j.buildAndAssertSuccess(us);
+        j.assertLogNotContains("The parameter 'password' did not have the type expected", b3);
+
+        // A boolean parameter passed as a string parameter
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'boolean', value: 'true')"), true));
+        WorkflowRun b4 = j.buildAndAssertSuccess(us);
+        j.assertLogContains("The parameter 'boolean' did not have the type expected", b4);
+        assertThat(getParameter(ds.getBuildByNumber(4), "boolean").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Boolean Parameter", us.getName() + " #4")));
+
+        // A boolean parameter passed as a boolean
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "booleanParam(name: 'boolean', value: true)"), true));
+        WorkflowRun b5 = j.buildAndAssertSuccess(us);
+        j.assertLogNotContains("The parameter 'boolean' did not have the type expected", b5);
+    }
+
+    private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {
+        return run.getAction(ParametersAction.class).getParameter(parameterName);
     }
 }

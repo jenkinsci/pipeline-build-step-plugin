@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.AbortException;
+import hudson.Util;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
 import hudson.model.Cause;
@@ -21,6 +22,9 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.SimpleParameterDefinition;
+import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
@@ -167,15 +171,29 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             allParameters.put(defaultP.getName(), defaultP);
                         }
                     } else {
+                        String description = Util.fixNull(pDef.getDescription());
                         if (pDef instanceof ChoiceParameterDefinition) {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (!((ChoiceParameterDefinition)pDef).getChoices().contains(pv.getValue())) {
                                 throw new AbortException("Value for choice parameter '" + pDef.getName() + "' is '" + pv.getValue() + "', "
                                         + "but valid choices are " + ((ChoiceParameterDefinition)pDef).getChoices());
                             }
+                        } else if (pDef instanceof SimpleParameterDefinition && !(pDef instanceof StringParameterDefinition)) {
+                            // c.f. https://github.com/jenkinsci/parameterized-trigger-plugin/blob/633587c4b0ae027175c738b3a2f46554a672f330/src/main/java/hudson/plugins/parameterizedtrigger/ProjectSpecificParameterValuesActionTransform.java
+                            ParameterValue pv = allParameters.get(pDef.getName());
+                            if (pv instanceof StringParameterValue) {
+                                String pDefDisplayName = pDef.getDescriptor().getDisplayName();
+                                listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), project.getFullName(), pDefDisplayName));
+                                ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
+                                allParameters.put(pDef.getName(), convertedValue);
+                                description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
+                            }
                         }
+                        // TODO: Should we try to detect some unconvertible cases and fail here instead of allowing it?
+                        // For example, someone passing BooleanParameterValue for a PasswordParameterDefinition?
+
                         // Get the description of specified parameters here. UI submission of parameters uses formatted description.
-                        allParameters.get(pDef.getName()).setDescription(pDef.getDescription());
+                        allParameters.get(pDef.getName()).setDescription(description);
                     }
                 }
             }
