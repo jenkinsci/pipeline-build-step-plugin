@@ -183,7 +183,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (pv instanceof StringParameterValue) {
                                 String pDefDisplayName = pDef.getDescriptor().getDisplayName();
-                                listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), project.getFullName(), pDefDisplayName));
+                                listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
                                 ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
                                 allParameters.put(pDef.getName(), convertedValue);
                                 description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());

@@ -600,44 +600,75 @@ public class BuildTriggerStepTest {
     }
 
     @Test public void automaticParameterConversion() throws Exception {
+        // Downstream Job
         WorkflowJob ds = j.createProject(WorkflowJob.class);
         ds.addProperty(new ParametersDefinitionProperty(
-                new PasswordParameterDefinition("password", "default", "description"),
-                new BooleanParameterDefinition("boolean", false, "description")
+                new PasswordParameterDefinition("my-password", "default", "description"),
+                new BooleanParameterDefinition("my-boolean", false, "description")
         ));
         ds.setDefinition(new CpsFlowDefinition(
-                "echo('Password: ' + params.password)\n" +
-                "echo('Boolean: ' + params.boolean)\n", true));
+                "echo('Password: ' + params['my-password'])\n" +
+                "echo('Boolean: ' + params['my-boolean'])\n", true));
+        // Upstream Job
         WorkflowJob us = j.createProject(WorkflowJob.class);
         String def = "build(job: '" + ds.getName() + "', parameters: [%s])";
 
         // A password parameter passed as a string parameter is converted.
-        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'password', value: 'secret')"), true));
-        WorkflowRun b1 = j.buildAndAssertSuccess(us);
-        j.assertLogContains("The parameter 'password' did not have the type expected", b1);
-        assertThat(getParameter(ds.getBuildByNumber(1), "password").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us.getName() + " #1")));
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'my-password', value: 'secret')"), true));
+        WorkflowRun us1 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds1 = ds.getBuildByNumber(1);
+        j.assertLogContains("The parameter 'my-password' did not have the type expected", us1);
+        j.assertLogContains("Password: secret", ds1);
+        assertThat(getParameter(ds1, "my-password").getDescription(),
+                equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us1.toString())));
 
         // A password parameter passed as a text parameter is converted.
-        us.setDefinition(new CpsFlowDefinition(String.format(def, "text(name: 'password', value: 'secret')"), true));
-        WorkflowRun b2 = j.buildAndAssertSuccess(us);
-        j.assertLogContains("The parameter 'password' did not have the type expected", b2);
-        assertThat(getParameter(ds.getBuildByNumber(2), "password").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us.getName() + " #2")));
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "text(name: 'my-password', value: 'secret')"), true));
+        WorkflowRun us2 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds2 = ds.getBuildByNumber(2);
+        j.assertLogContains("The parameter 'my-password' did not have the type expected", us2);
+        j.assertLogContains("Password: secret", ds2);
+        assertThat(getParameter(ds2, "my-password").getDescription(),
+                equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Password Parameter", us2.toString())));
 
         // A password parameter passed as a password parameter is not converted.
-        us.setDefinition(new CpsFlowDefinition(String.format(def, "password(name: 'password', value: 'secret')"), true));
-        WorkflowRun b3 = j.buildAndAssertSuccess(us);
-        j.assertLogNotContains("The parameter 'password' did not have the type expected", b3);
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "password(name: 'my-password', value: 'secret')"), true));
+        WorkflowRun us3 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds3 = ds.getBuildByNumber(3);
+        j.assertLogNotContains("The parameter 'my-password' did not have the type expected", us3);
+        j.assertLogContains("Password: secret", ds3);
+
+        // A password parameter passed as a boolean parameter is not converted.
+        // This is an example of the case mentioned in the TODO comment in `BuildTriggerStepExecution.completeDefaultParameters`.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "booleanParam(name: 'my-password', value: true)"), true));
+        WorkflowRun us4 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds4 = ds.getBuildByNumber(4);
+        j.assertLogNotContains("The parameter 'my-password' did not have the type expected", us4);
+        j.assertLogContains("Password: true", ds4);
 
         // A boolean parameter passed as a string parameter
-        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'boolean', value: 'true')"), true));
-        WorkflowRun b4 = j.buildAndAssertSuccess(us);
-        j.assertLogContains("The parameter 'boolean' did not have the type expected", b4);
-        assertThat(getParameter(ds.getBuildByNumber(4), "boolean").getDescription(), equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Boolean Parameter", us.getName() + " #4")));
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "string(name: 'my-boolean', value: 'true')"), true));
+        WorkflowRun us5 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds5 = ds.getBuildByNumber(5);
+        j.assertLogContains("The parameter 'my-boolean' did not have the type expected", us5);
+        j.assertLogContains("Boolean: true", ds5);
+        assertThat(getParameter(ds5, "my-boolean").getDescription(),
+                equalTo(Messages.BuildTriggerStepExecution_convertedParameterDescription("description", "Boolean Parameter", us5.toString())));
 
-        // A boolean parameter passed as a boolean
-        us.setDefinition(new CpsFlowDefinition(String.format(def, "booleanParam(name: 'boolean', value: true)"), true));
-        WorkflowRun b5 = j.buildAndAssertSuccess(us);
-        j.assertLogNotContains("The parameter 'boolean' did not have the type expected", b5);
+        // A boolean parameter passed as a password parameter.
+        // This is an example of the case mentioned in the TODO comment in `BuildTriggerStepExecution.completeDefaultParameters`.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "password(name: 'my-boolean', value: 'secret')"), true));
+        WorkflowRun us6 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds6 = ds.getBuildByNumber(6);
+        j.assertLogNotContains("The parameter 'my-boolean' did not have the type expected", us6);
+        j.assertLogContains("Boolean: secret", ds6);
+
+        // A boolean parameter passed as a boolean.
+        us.setDefinition(new CpsFlowDefinition(String.format(def, "booleanParam(name: 'my-boolean', value: true)"), true));
+        WorkflowRun us7 = j.buildAndAssertSuccess(us);
+        WorkflowRun ds7 = ds.getBuildByNumber(7);
+        j.assertLogNotContains("The parameter 'my-boolean' did not have the type expected", us7);
+        j.assertLogContains("Boolean: true", ds7);
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {
