@@ -94,18 +94,11 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                 parameters = completeDefaultParameters(parameters, (Job) project);
                 actions.add(new ParametersAction(parameters));
             }
-            Integer quietPeriod = step.getQuietPeriod();
-            // TODO use new convenience method in 1.621
-            if (quietPeriod == null) {
-                quietPeriod = project.getQuietPeriod();
-            }
-            QueueTaskFuture<?> f = new ParameterizedJobMixIn() {
-                @Override
-                protected Job asJob() {
-                    return (Job) project;
-                }
-            }.scheduleBuild2(quietPeriod, actions.toArray(new Action[actions.size()]));
-            if (f == null) {
+            int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod().intValue() : -1;
+            Queue.Item queueItem =
+                    ParameterizedJobMixIn.scheduleBuild2(
+                            (Job<?, ?>) project, quietPeriod, actions.toArray(new Action[actions.size()]));
+            if (queueItem == null || queueItem.getFuture() == null) {
                 throw new AbortException("Failed to trigger build of " + project.getFullName());
             }
         } else if (item instanceof Queue.Task){
