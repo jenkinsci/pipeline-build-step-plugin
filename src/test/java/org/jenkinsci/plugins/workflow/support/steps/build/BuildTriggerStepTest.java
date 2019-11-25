@@ -497,7 +497,7 @@ public class BuildTriggerStepTest {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition("", true));
         j.jenkins.setSecurityRealm(j.createDummySecurityRealm());
-        QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("us", User.get("dev").impersonate())));
+        QueueItemAuthenticatorConfiguration.get().getAuthenticators().add(new MockQueueItemAuthenticator(Collections.singletonMap("us", User.getById("dev", true).impersonate())));
         // Control case: dev can do anything to ds.
         j.jenkins.setAuthorizationStrategy(new MockAuthorizationStrategy().grant(Jenkins.ADMINISTER).everywhere().to("dev"));
         j.buildAndAssertSuccess(us);

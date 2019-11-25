@@ -96,7 +96,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
             JSONArray params = parameter != null ? JSONArray.fromObject(parameter) : null;
             if (params != null) {
                 Job<?,?> context = StaplerReferer.findItemFromRequest(Job.class);
-                Job<?,?> job = Jenkins.getActiveInstance().getItem(step.getJob(), context, Job.class);
+                Job<?,?> job = Jenkins.get().getItem(step.getJob(), context, Job.class);
                 if (job != null) {
                     ParametersDefinitionProperty pdp = job.getProperty(ParametersDefinitionProperty.class);
                     if (pdp != null) {
@@ -173,12 +173,12 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 }
             }
 
-            if (container == null || container == Jenkins.getInstance()) {
-                new Visitor("").onItemGroup(Jenkins.getInstance());
+            if (container == null || container == Jenkins.getInstanceOrNull()) {
+                new Visitor("").onItemGroup(Jenkins.getInstanceOrNull());
             } else {
                 new Visitor("").onItemGroup(container);
                 if (value.startsWith("/"))
-                    new Visitor("/").onItemGroup(Jenkins.getInstance());
+                    new Visitor("/").onItemGroup(Jenkins.getInstanceOrNull());
 
                 for (StringBuilder p = new StringBuilder("../"); value.startsWith(p.toString()); p .append("../")) {
                     container = ((Item) container).getParent();
@@ -206,7 +206,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
             if (!value) {
                 return FormValidation.ok();
             }
-            Item item = Jenkins.getActiveInstance().getItem(job, context, Item.class);
+            Item item = Jenkins.get().getItem(job, context, Item.class);
             if (item == null) {
                 return FormValidation.ok();
             }
@@ -220,7 +220,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
             if (StringUtils.isBlank(value)) {
                 return FormValidation.warning(Messages.BuildTriggerStep_no_job_configured());
             }
-            Item item = Jenkins.getActiveInstance().getItem(value, context, Item.class);
+            Item item = Jenkins.get().getItem(value, context, Item.class);
             if (item == null) {
                 return FormValidation.error(Messages.BuildTriggerStep_cannot_find(value));
             }
