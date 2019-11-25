@@ -2,7 +2,7 @@
 
 ### 2.10 
 
-Release date: 2019-11-15
+Release date: 2019-11-25
 
 -   Fix: When using `propagate: true` (the default), the result of the downstream job is now used as the result of the `build` step. Previously, when the downstream job was not successful, the result of the build step was `FAILURE` no matter the actual result (`UNSTABLE`, `ABORTED`, etc.). [JENKINS-49073](https://issues.jenkins-ci.org/browse/JENKINS-49073)
 -   Improvement: When the type of a parameter passed to the `build` step does not match the type of the same parameter on the downstream job, the passed parameter will now be automatically converted to the correct type in some cases (such as when passing a string parameter when the downstream job expects a password parameter). ([JENKINS-60216](https://issues.jenkins-ci.org/browse/JENKINS-60216))
