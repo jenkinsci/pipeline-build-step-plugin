@@ -1,6 +1,13 @@
 ## Changelog
 
-### 2.10 
+### 2.11
+
+Release date: 2020-01-03
+
+-   Fix: Mark that the `FlowInterruptedException` thrown by the `build` step when the downstream build fails while using `propagate: true` should not be treated as a build interruption. Part of the fix for [JENKINS-60354](https://issues.jenkins-ci.org/browse/JENKINS-60354). Update Pipeline: Basic Steps Plugin to 2.19 or newer along with this update for the full fix. ([PR 39](https://github.com/jenkinsci/pipeline-build-step-plugin/pull/39))
+-   Internal: Update parent POM. ([PR 40](https://github.com/jenkinsci/pipeline-build-step-plugin/pull/40))
+
+### 2.10
 
 Release date: 2019-11-26
 
