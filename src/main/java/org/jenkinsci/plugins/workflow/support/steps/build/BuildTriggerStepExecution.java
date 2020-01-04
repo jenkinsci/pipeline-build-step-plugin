@@ -38,6 +38,7 @@ import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -90,7 +91,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
             List<ParameterValue> parameters = step.getParameters();
             if (parameters != null) {
-                parameters = completeDefaultParameters(parameters, (Job) project);
+                parameters = completeDefaultParameters(parameters, (Job) project, invokingRun, listener.getLogger());
                 actions.add(new ParametersAction(parameters));
             }
             int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod().intValue() : -1;
@@ -148,7 +149,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
     }
 
-    private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) throws AbortException {
+    static List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project, Run<?, ?> invokingRun, PrintStream logger) throws AbortException {
         Map<String,ParameterValue> allParameters = new HashMap<>();
         for (ParameterValue pv : parameters) {
             allParameters.put(pv.getName(), pv);
@@ -175,7 +176,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (pv instanceof StringParameterValue) {
                                 String pDefDisplayName = pDef.getDescriptor().getDisplayName();
-                                listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
+                                logger.println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
                                 ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
                                 allParameters.put(pDef.getName(), convertedValue);
                                 description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());

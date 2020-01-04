@@ -1,0 +1,13 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <t:summary icon="orange_square.png">
+        <div title="${it.linkTooltip}"><a onclick="return triggerBuild(this)" href="${it.triggerUrl}">${it.linkLabel}</a></div>
+    </t:summary>
+    <script>
+    function triggerBuild(a) {
+        new Ajax.Request(a.href);
+        hoverNotification('Build gestartet', a.parentNode);
+        return false;
+    }
+    </script>
+</j:jelly>
