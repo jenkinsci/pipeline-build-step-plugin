@@ -175,10 +175,14 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (pv instanceof StringParameterValue) {
                                 String pDefDisplayName = pDef.getDescriptor().getDisplayName();
-                                listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
+                                // ExtensibleChoiceParameterDefinition is similar to ChoiceParameterDefinition, and a type
+                                // mismatch is expected, so we want to do the conversion, but not log a warning.
+                                if (!pDef.getClass().getName().equals("jp.ikedam.jenkins.plugins.extensible_choice_parameter.ExtensibleChoiceParameterDefinition")) {
+                                    listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
+                                    description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
+                                }
                                 ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
                                 allParameters.put(pDef.getName(), convertedValue);
-                                description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
                             }
                         }
                         // TODO: Should we try to detect some unconvertible cases and fail here instead of allowing it?
