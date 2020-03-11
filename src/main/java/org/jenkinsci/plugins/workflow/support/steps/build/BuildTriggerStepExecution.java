@@ -54,8 +54,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     private static final Logger LOGGER = Logger.getLogger(BuildTriggerStepExecution.class.getName());
     private static final Set<String> CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES = ImmutableSet.of(
             "jp.ikedam.jenkins.plugins.extensible_choice_parameter.ExtensibleChoiceParameterDefinition",
+            // The names are misleading, but these classes are all parameter definitions, not parameters.
             "org.biouno.unochoice.CascadeChoiceParameter",
-            "org.biouno.unochoice.ChoiceParameter");
+            "org.biouno.unochoice.ChoiceParameter",
+            "org.biouno.unochoice.DynamicReferenceParameter");
 
     @StepContextParameter
     private transient TaskListener listener;
