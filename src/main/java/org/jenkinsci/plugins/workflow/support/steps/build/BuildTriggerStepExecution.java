@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import hudson.AbortException;
@@ -44,12 +45,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
     private static final Logger LOGGER = Logger.getLogger(BuildTriggerStepExecution.class.getName());
+    private static final Set<String> CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES = ImmutableSet.of(
+            "jp.ikedam.jenkins.plugins.extensible_choice_parameter.ExtensibleChoiceParameterDefinition",
+            "org.biouno.unochoice.CascadeChoiceParameter",
+            "org.biouno.unochoice.ChoiceParameter");
 
     @StepContextParameter
     private transient TaskListener listener;
@@ -175,9 +181,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (pv instanceof StringParameterValue) {
                                 String pDefDisplayName = pDef.getDescriptor().getDisplayName();
-                                // ExtensibleChoiceParameterDefinition is similar to ChoiceParameterDefinition, and a type
-                                // mismatch is expected, so we want to do the conversion, but not log a warning.
-                                if (!pDef.getClass().getName().equals("jp.ikedam.jenkins.plugins.extensible_choice_parameter.ExtensibleChoiceParameterDefinition")) {
+                                // For classes with semantics similar to ChoiceParameterDefinition, a type mismatch for
+                                // the parameter versus the definition is expected, so we want to do the conversion, but
+                                // not log a warning.
+                                if (!CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES.contains(pDef.getClass().getName())) {
                                     listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
                                     description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
                                 }
