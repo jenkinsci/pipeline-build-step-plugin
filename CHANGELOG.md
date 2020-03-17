@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.12
+
+Release date: 2020-03-17
+
+-   Fix: Do not log parameter conversion warnings for parameters from Active Choices Plugin or Extended Choice Parameter Plugin. ([JENKINS-60779](https://issues.jenkins-ci.org/browse/JENKINS-60779))
+
 ### 2.11
 
 Release date: 2020-01-03
