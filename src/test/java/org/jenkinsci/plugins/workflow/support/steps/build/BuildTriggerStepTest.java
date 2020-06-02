@@ -560,7 +560,7 @@ public class BuildTriggerStepTest {
 
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'letter', value: 'c')]\n", true));
-        j.assertLogContains("Value for choice parameter 'letter' is 'c', but valid choices are [a, b]",
+        j.assertLogContains("Invalid parameter value: (StringParameterValue) letter='c'",
                 j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
 

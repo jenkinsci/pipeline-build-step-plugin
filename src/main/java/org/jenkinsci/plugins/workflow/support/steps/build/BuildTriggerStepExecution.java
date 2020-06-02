@@ -172,13 +172,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                         }
                     } else {
                         String description = Util.fixNull(pDef.getDescription());
-                        if (pDef instanceof ChoiceParameterDefinition) {
-                            ParameterValue pv = allParameters.get(pDef.getName());
-                            if (!((ChoiceParameterDefinition)pDef).getChoices().contains(pv.getValue())) {
-                                throw new AbortException("Value for choice parameter '" + pDef.getName() + "' is '" + pv.getValue() + "', "
-                                        + "but valid choices are " + ((ChoiceParameterDefinition)pDef).getChoices());
-                            }
-                        } else if (pDef instanceof SimpleParameterDefinition && !(pDef instanceof StringParameterDefinition)) {
+                        if (pDef instanceof SimpleParameterDefinition && !(pDef instanceof StringParameterDefinition) && !(pDef instanceof ChoiceParameterDefinition)) {
                             // c.f. https://github.com/jenkinsci/parameterized-trigger-plugin/blob/633587c4b0ae027175c738b3a2f46554a672f330/src/main/java/hudson/plugins/parameterizedtrigger/ProjectSpecificParameterValuesActionTransform.java
                             ParameterValue pv = allParameters.get(pDef.getName());
                             if (pv instanceof StringParameterValue) {
@@ -194,6 +188,11 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                                 allParameters.put(pDef.getName(), convertedValue);
                             }
                         }
+                        ParameterValue pv = allParameters.get(pDef.getName());
+                        if (!pDef.isValid(pv)) {
+                            throw new AbortException("Invalid parameter value: " + pv);
+                        }
+
                         // TODO: Should we try to detect some unconvertible cases and fail here instead of allowing it?
                         // For example, someone passing BooleanParameterValue for a PasswordParameterDefinition?
 
