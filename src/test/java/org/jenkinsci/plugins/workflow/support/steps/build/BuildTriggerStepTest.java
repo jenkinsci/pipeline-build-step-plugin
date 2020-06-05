@@ -29,6 +29,7 @@ import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -677,6 +678,30 @@ public class BuildTriggerStepTest {
         WorkflowRun ds7 = ds.getBuildByNumber(7);
         j.assertLogNotContains("The parameter 'my-boolean' did not have the type expected", us7);
         j.assertLogContains("Boolean: true", ds7);
+    }
+
+    @Issue("JENKINS-62483")
+    @Test public void maintainParameterListOrder() throws Exception {
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        String params = "[string(name: 'PARAM1', value: 'p1'), " +
+                "string(name: 'PARAM2', value: 'p2'), " +
+                "string(name: 'PARAM3', value: 'p3'), " +
+                "string(name: 'PARAM4', value: 'p4')]";
+        us.setDefinition(new CpsFlowDefinition(String.format("build job: 'ds', parameters: %s", params), true));
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.addProperty(new ParametersDefinitionProperty(
+                new StringParameterDefinition("PARAM1", ""),
+                new StringParameterDefinition("PARAM2", ""),
+                new StringParameterDefinition("PARAM3", ""),
+                new StringParameterDefinition("PARAM4", "")));
+        ds.setDefinition(new CpsFlowDefinition("echo \"${PARAM1} - ${PARAM2} - ${PARAM3} - ${PARAM4}\"", true));
+        j.buildAndAssertSuccess(us);
+        ParametersAction buildParams = ds.getLastBuild().getAction(ParametersAction.class);
+        List<String> parameterNames = new ArrayList<>();
+        for (ParameterValue parameterValue : buildParams.getAllParameters()) {
+            parameterNames.add(parameterValue.getName());
+        }
+        assertThat(parameterNames, equalTo(Arrays.asList("PARAM1", "PARAM2", "PARAM3", "PARAM4")));
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {
