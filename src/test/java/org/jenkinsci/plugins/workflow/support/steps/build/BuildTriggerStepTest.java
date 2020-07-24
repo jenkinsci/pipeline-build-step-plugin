@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.CredentialsParameterDefinition;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Launcher;
@@ -710,6 +712,33 @@ public class BuildTriggerStepTest {
             parameterNames.add(parameterValue.getName());
         }
         assertThat(parameterNames, equalTo(Arrays.asList("PARAM1", "PARAM2", "PARAM3", "PARAM4")));
+    }
+
+    @Issue("JENKINS-62305")
+    @Test public void passwordParameter() throws Exception {
+        WorkflowJob ds = j.createProject(WorkflowJob.class);
+        ds.addProperty(new ParametersDefinitionProperty(
+                new PasswordParameterDefinition("my-password", "", "")));
+        ds.setDefinition(new CpsFlowDefinition(
+                "echo('Password: ' + params['my-password'])\n", true));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        us.setDefinition(new CpsFlowDefinition(
+                "build(job: '" + ds.getName() + "', parameters: [password(name: 'my-password', value: 'secret')])", true));
+        j.buildAndAssertSuccess(us);
+        j.assertLogContains("Password: secret", ds.getBuildByNumber(1));
+    }
+
+    @Test public void credentialsParameter() throws Exception {
+        WorkflowJob ds = j.createProject(WorkflowJob.class);
+        ds.addProperty(new ParametersDefinitionProperty(
+                new CredentialsParameterDefinition("my-credential", "", "", Credentials.class.getName(), false)));
+        ds.setDefinition(new CpsFlowDefinition(
+                "echo('Credential: ' + params['my-credential'])\n", true));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        us.setDefinition(new CpsFlowDefinition(
+                "build(job: '" + ds.getName() + "', parameters: [credentials(name: 'my-credential', value: 'credential-id')])", true));
+        j.buildAndAssertSuccess(us);
+        j.assertLogContains("Credential: credential-id", ds.getBuildByNumber(1));
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {

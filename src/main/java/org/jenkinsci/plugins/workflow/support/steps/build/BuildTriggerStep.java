@@ -10,14 +10,22 @@ import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.util.FormValidation;
+import hudson.util.Secret;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
+import org.jenkinsci.plugins.structs.describable.DescribableModel;
+import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import org.jenkinsci.plugins.workflow.steps.Step;
@@ -80,7 +88,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
     }
 
     @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements CustomDescribableModel {
 
         public DescriptorImpl() {
             super(BuildTriggerStepExecution.class);
@@ -88,7 +96,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
 
         // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
         // using the snippet generator does not match what would be neccessary for databinding to work automatically.
-        // For non-snippet generator use, this is unnecessary.
+        // Only called via the snippet generator.
         @Override public Step newInstance(StaplerRequest req, JSONObject formData) throws FormException {
             BuildTriggerStep step = (BuildTriggerStep) super.newInstance(req, formData);
             // Cf. ParametersDefinitionProperty._doBuild:
@@ -120,6 +128,50 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 }
             }
             return step;
+        }
+
+        /**
+         * Compatibility hack for JENKINS-62305. Only affects runtime behavior of the step, not the snippet generator.
+         * Ideally, password parameters would not be used at all with this step, but there was no documentation or
+         * runtime warnings for this usage previously and so it is relatively common.
+         */
+        @Override
+        public Map<String, Object> customInstantiate(Map<String, Object> map) {
+            if (DescribableModel.of(PasswordParameterValue.class).getParameter("value").getErasedType() != Secret.class) {
+                return map;
+            }
+            return copyMapReplacingEntry(map, "parameters", List.class, parameters -> {
+                List<Object> newParameters = new ArrayList<>(parameters.size());
+                for (Object parameter : parameters) {
+                    if (parameter instanceof UninstantiatedDescribable) {
+                        UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
+                        if (ud.getSymbol().equals("password")) {
+                            Map<String, Object> newArguments = copyMapReplacingEntry(ud.getArguments(), "value", String.class, Secret::fromString);
+                            newParameters.add(ud.withArguments(newArguments));
+                        } else {
+                            newParameters.add(parameter);
+                        }
+                    } else {
+                        newParameters.add(parameter);
+                    }
+                }
+                return newParameters;
+            });
+        }
+
+        /**
+         * Copy a map, replacing the entry with the specified key if it matches the specified type.
+         */
+        private static <T> Map<String, Object> copyMapReplacingEntry(Map<String, ?> map, String keyToReplace, Class<T> requiredValueType, Function<T, Object> replacer) {
+            Map<String, Object> newMap = new HashMap<>();
+            for (Map.Entry<String, ?> entry : map.entrySet()) {
+                if (entry.getKey().equals(keyToReplace) && requiredValueType.isInstance(entry.getValue())) {
+                    newMap.put(entry.getKey(), replacer.apply(requiredValueType.cast(entry.getValue())));
+                } else {
+                    newMap.put(entry.getKey(), entry.getValue());
+                }
+            }
+            return newMap;
         }
 
         @Override
