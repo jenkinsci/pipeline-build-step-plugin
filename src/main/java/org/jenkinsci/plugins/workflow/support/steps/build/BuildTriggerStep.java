@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -140,23 +141,20 @@ public class BuildTriggerStep extends AbstractStepImpl {
             if (DescribableModel.of(PasswordParameterValue.class).getParameter("value").getErasedType() != Secret.class) {
                 return map;
             }
-            return copyMapReplacingEntry(map, "parameters", List.class, parameters -> {
-                List<Object> newParameters = new ArrayList<>(parameters.size());
-                for (Object parameter : parameters) {
-                    if (parameter instanceof UninstantiatedDescribable) {
-                        UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
-                        if (ud.getSymbol().equals("password")) {
-                            Map<String, Object> newArguments = copyMapReplacingEntry(ud.getArguments(), "value", String.class, Secret::fromString);
-                            newParameters.add(ud.withArguments(newArguments));
-                        } else {
-                            newParameters.add(parameter);
-                        }
-                    } else {
-                        newParameters.add(parameter);
-                    }
-                }
-                return newParameters;
-            });
+            return copyMapReplacingEntry(map, "parameters", List.class, parameters ->
+                parameters.stream()
+                        .map(parameter -> {
+                            if (parameter instanceof UninstantiatedDescribable) {
+                                UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
+                                if (ud.getSymbol().equals("password")) {
+                                    Map<String, Object> newArguments = copyMapReplacingEntry(ud.getArguments(), "value", String.class, Secret::fromString);
+                                    return ud.withArguments(newArguments);
+                                }
+                            }
+                            return parameter;
+                        })
+                        .collect(Collectors.toList())
+            );
         }
 
         /**
