@@ -615,6 +615,7 @@ public class BuildTriggerStepTest {
         } catch (Exception e) {
             // TODO: Jenkins 2.236+ broke structs-based databinding and introspection of PasswordParameterValue, JENKINS-62305.
             assumeThat(e.getMessage(), not(containsString("There's no @DataBoundConstructor on any constructor of class hudson.util.Secret")));
+            throw e;
         }
     }
 
