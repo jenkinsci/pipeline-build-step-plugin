@@ -22,6 +22,7 @@ import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
@@ -577,6 +578,9 @@ public class BuildTriggerStepTest {
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
         // Note: This does not actually test the format of the JSON produced by the snippet generator for parameters, see generateSnippet* for tests of that behavior.
         st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        // Passwords parameters are handled specially via CustomDescribableModel
+        step.setParameters(Arrays.asList(new PasswordParameterValue("param-name", "secret")));
+        st.assertRoundTrip(step, "build job: 'downstream', parameters: [password(name: 'param-name', value: 'secret')]");
     }
 
     @Issue("JENKINS-26093")

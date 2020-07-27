@@ -157,6 +157,24 @@ public class BuildTriggerStep extends AbstractStepImpl {
             );
         }
 
+        @Override
+        public UninstantiatedDescribable customUninstantiate(UninstantiatedDescribable step) {
+            Map<String, Object> newStepArgs = copyMapReplacingEntry(step.getArguments(), "parameters", List.class, parameters -> parameters.stream()
+                    .map(parameter -> {
+                        if (parameter instanceof UninstantiatedDescribable) {
+                            UninstantiatedDescribable ud = (UninstantiatedDescribable) parameter;
+                            if (ud.getSymbol().equals("password")) {
+                                Map<String, Object> newParamArgs = copyMapReplacingEntry(ud.getArguments(), "value", Secret.class, Secret::getPlainText);
+                                return ud.withArguments(newParamArgs);
+                            }
+                        }
+                        return parameter;
+                    })
+                    .collect(Collectors.toList())
+            );
+            return step.withArguments(newStepArgs);
+        }
+
         /**
          * Copy a map, replacing the entry with the specified key if it matches the specified type.
          */
