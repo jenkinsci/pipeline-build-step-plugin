@@ -38,7 +38,7 @@ THE SOFTWARE.
     <f:entry field="quietPeriod" title="Quiet period">
         <f:number clazz="number"/>
     </f:entry>
-    <f:entry title="Parameters">
+    <f:entry title="Parameters" help="${descriptor.getHelpFile('parameters')}">
         <div id="params"/>
         <script>
             function loadParams() {
