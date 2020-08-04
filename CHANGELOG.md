@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2.13
+
+Release date: 2020-08-04
+
+- Fix: Make password parameters work with the `build` step in Jenkins 2.236 and newer ([JENKINS-62305](https://issues.jenkins-ci.org/browse/JENKINS-62305))
+- Fix: Make the Parameters page of builds triggered by the `build` step always display parameters in the order they are defined on the job for that build ([JENKINS-62483](https://issues.jenkins-ci.org/browse/JENKINS-62483))
+- Documentation: [Add guidelines recommending credentials parameters over password parameters when passing secrets using the `build` step](https://plugins.jenkins.io/pipeline-build-step/)
+- Internal: Update minimum required Jenkins version to 2.176.4, update parent POM, and update dependencies ([PR 46](https://github.com/jenkinsci/pipeline-build-step-plugin/pull/46))
+
 ### 2.12
 
 Release date: 2020-03-17
