@@ -6,7 +6,8 @@
 
 ## Introduction
 
-Adds the Pipeline `build` step, which triggers builds of other jobs.
+Adds the Pipeline `build` step, which triggers builds of other jobs. Use the [_"Pipeline Syntax" Snippet Generator_](https://jenkins.io/redirect/pipeline-snippet-generator) to get a detailed example for your Build.
+The Pipeline Syntax snippet generator helps the user generate steps for jenkins pipeline.
 
 ### Passing secret values to other jobs
 
