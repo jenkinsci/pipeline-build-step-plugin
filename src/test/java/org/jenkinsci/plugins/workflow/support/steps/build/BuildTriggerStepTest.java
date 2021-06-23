@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import jenkins.branch.MultiBranchProjectFactory;
 import jenkins.branch.MultiBranchProjectFactoryDescriptor;
 import jenkins.branch.OrganizationFolder;
@@ -54,7 +55,9 @@ import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.SnippetizerTester;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
@@ -115,6 +118,42 @@ public class BuildTriggerStepTest {
         j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
     }
 
+    @Issue("JENKINS-60995")
+    @Test public void upstreamCause() throws Exception {
+        FreeStyleProject downstream = j.createFreeStyleProject("downstream");
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+
+        upstream.setDefinition(new CpsFlowDefinition("build 'downstream'", true));
+        j.assertBuildStatus(Result.SUCCESS, upstream.scheduleBuild2(0));
+
+        WorkflowRun lastUpstreamRun = upstream.getLastBuild();
+        FreeStyleBuild lastDownstreamRun = downstream.getLastBuild();
+
+        final FlowExecution execution = lastUpstreamRun.getExecution();
+
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(execution, BuildTriggerStep.DescriptorImpl.class);
+        assertNotNull(buildTriggerNode);
+
+        List<BuildUpstreamCause> causes = lastDownstreamRun.getCauses().stream().filter(BuildUpstreamCause.class::isInstance).map(BuildUpstreamCause.class::cast).collect(Collectors.toList());
+        assertEquals("action count", 1, causes.size());
+
+        BuildUpstreamCause action = causes.get(0);
+        assertEquals("correct upstreamRun", action.getUpstreamRun(), lastUpstreamRun);
+        assertEquals("valid upstreamNodeId", buildTriggerNode, execution.getNode(action.getNodeId()));
+    }
+
+    private static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class cls) {
+        for (FlowNode node : new FlowGraphWalker(execution)) {
+            if (node instanceof StepAtomNode) {
+                StepAtomNode stepAtomNode = (StepAtomNode) node;
+                if (cls.isInstance(stepAtomNode.getDescriptor())) {
+                    return stepAtomNode;
+                }
+            }
+        }
+        return null;
+    }
+
     @Issue("JENKINS-38339")
     @Test public void upstreamNodeAction() throws Exception {
         FreeStyleProject downstream = j.createFreeStyleProject("downstream");
@@ -127,16 +166,15 @@ public class BuildTriggerStepTest {
         FreeStyleBuild lastDownstreamRun = downstream.getLastBuild();
 
         final FlowExecution execution = lastUpstreamRun.getExecution();
-        List<FlowNode> nodes = execution.getCurrentHeads();
-        assertEquals("node count", 1, nodes.size());
-        FlowNode headNode = nodes.get(0);
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(execution, BuildTriggerStep.DescriptorImpl.class);
+        assertNotNull(buildTriggerNode);
 
         List<BuildUpstreamNodeAction> actions = lastDownstreamRun.getActions(BuildUpstreamNodeAction.class);
         assertEquals("action count", 1, actions.size());
 
         BuildUpstreamNodeAction action = actions.get(0);
         assertEquals("correct upstreamRunId", action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId());
-        assertNotNull("valid upstreamNodeId", execution.getNode(action.getUpstreamNodeId()));
+        assertEquals("valid upstreamNodeId", buildTriggerNode, execution.getNode(action.getUpstreamNodeId()));
     }
 
     @SuppressWarnings("deprecation")

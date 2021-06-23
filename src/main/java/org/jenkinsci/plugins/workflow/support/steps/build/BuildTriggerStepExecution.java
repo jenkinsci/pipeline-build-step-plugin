@@ -81,7 +81,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         List<Action> actions = new ArrayList<>();
-        actions.add(new CauseAction(new Cause.UpstreamCause(invokingRun)));
+        actions.add(new CauseAction(new BuildUpstreamCause(node, invokingRun)));
         actions.add(new BuildUpstreamNodeAction(node, invokingRun));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
