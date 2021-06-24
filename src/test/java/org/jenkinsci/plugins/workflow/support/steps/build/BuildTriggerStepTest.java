@@ -145,7 +145,10 @@ public class BuildTriggerStepTest {
 
         List<BuildUpstreamCause> upstreamCauses = new ArrayList<>();
         for (Run<FreeStyleProject, FreeStyleBuild> downstreamRun : downstream.getBuilds()) {
-            upstreamCauses.addAll(downstreamRun.getCauses().stream().filter(BuildUpstreamCause.class::isInstance).map(BuildUpstreamCause.class::cast).collect(Collectors.toList()));
+            upstreamCauses.addAll(downstreamRun.getCauses().stream()
+                .filter(BuildUpstreamCause.class::isInstance)
+                .map(BuildUpstreamCause.class::cast)
+                .collect(Collectors.toList()));
         }
         assertThat("There should be as many upstream causes as upstream builds", upstreamCauses, hasSize(numberOfUpstreamBuilds));
 
