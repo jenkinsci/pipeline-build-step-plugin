@@ -38,7 +38,7 @@ THE SOFTWARE.
     <f:entry field="quietPeriod" title="Quiet period">
         <f:number clazz="number"/>
     </f:entry>
-    <f:entry title="Parameters">
+    <f:entry field="parameters" title="Parameters">
         <div id="params"/>
         <script>
             function loadParams() {

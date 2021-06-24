@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.CredentialsParameterDefinition;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Launcher;
@@ -20,6 +22,7 @@ import hudson.model.ParameterValue;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.PasswordParameterDefinition;
+import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
@@ -29,11 +32,15 @@ import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import jenkins.branch.MultiBranchProjectFactory;
 import jenkins.branch.MultiBranchProjectFactoryDescriptor;
 import jenkins.branch.OrganizationFolder;
@@ -45,17 +52,21 @@ import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 import org.apache.commons.lang.StringUtils;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.SnippetizerTester;
+import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
 import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -73,7 +84,12 @@ import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.recipes.LocalData;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assume.assumeThat;
 
 public class BuildTriggerStepTest {
 
@@ -108,6 +124,57 @@ public class BuildTriggerStepTest {
         j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
     }
 
+    @Issue("JENKINS-60995")
+    @Test public void upstreamCause() throws Exception {
+        FreeStyleProject downstream = j.createFreeStyleProject("downstream");
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+
+        upstream.setDefinition(new CpsFlowDefinition("build 'downstream'", true));
+        int numberOfUpstreamBuilds = 3;
+        for (int i = 0; i < numberOfUpstreamBuilds; i++) {
+            upstream.scheduleBuild2(0);
+            // Wait a bit before scheduling next one
+            Thread.sleep(100);
+        }
+        for (WorkflowRun upstreamRun : upstream.getBuilds()) {
+            j.waitForCompletion(upstreamRun);
+            j.assertBuildStatus(Result.SUCCESS, upstreamRun);
+        }
+        // Wait for all downstream builds to complete
+        j.waitUntilNoActivity();
+
+        List<BuildUpstreamCause> upstreamCauses = new ArrayList<>();
+        for (Run<FreeStyleProject, FreeStyleBuild> downstreamRun : downstream.getBuilds()) {
+            upstreamCauses.addAll(downstreamRun.getCauses().stream()
+                .filter(BuildUpstreamCause.class::isInstance)
+                .map(BuildUpstreamCause.class::cast)
+                .collect(Collectors.toList()));
+        }
+        assertThat("There should be as many upstream causes as upstream builds", upstreamCauses, hasSize(numberOfUpstreamBuilds));
+
+        Set<WorkflowRun> ups = new HashSet<>();
+        for (BuildUpstreamCause up : upstreamCauses) {
+            WorkflowRun upstreamRun = (WorkflowRun) up.getUpstreamRun();
+            ups.add(upstreamRun);
+            FlowExecution execution = upstreamRun.getExecution();
+            FlowNode buildTriggerNode = findFirstNodeWithDescriptor(execution, BuildTriggerStep.DescriptorImpl.class);
+            assertEquals("node id should be build trigger node", buildTriggerNode, execution.getNode(up.getNodeId()));
+        }
+        assertEquals("There should be as many upstream causes as referenced upstream builds", numberOfUpstreamBuilds, ups.size());
+    }
+
+    private static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class<BuildTriggerStep.DescriptorImpl> cls) {
+        for (FlowNode node : new FlowGraphWalker(execution)) {
+            if (node instanceof StepAtomNode) {
+                StepAtomNode stepAtomNode = (StepAtomNode) node;
+                if (cls.isInstance(stepAtomNode.getDescriptor())) {
+                    return stepAtomNode;
+                }
+            }
+        }
+        return null;
+    }
+
     @Issue("JENKINS-38339")
     @Test public void upstreamNodeAction() throws Exception {
         FreeStyleProject downstream = j.createFreeStyleProject("downstream");
@@ -120,16 +187,15 @@ public class BuildTriggerStepTest {
         FreeStyleBuild lastDownstreamRun = downstream.getLastBuild();
 
         final FlowExecution execution = lastUpstreamRun.getExecution();
-        List<FlowNode> nodes = execution.getCurrentHeads();
-        assertEquals("node count", 1, nodes.size());
-        FlowNode headNode = nodes.get(0);
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(execution, BuildTriggerStep.DescriptorImpl.class);
+        assertNotNull(buildTriggerNode);
 
         List<BuildUpstreamNodeAction> actions = lastDownstreamRun.getActions(BuildUpstreamNodeAction.class);
         assertEquals("action count", 1, actions.size());
 
         BuildUpstreamNodeAction action = actions.get(0);
         assertEquals("correct upstreamRunId", action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId());
-        assertNotNull("valid upstreamNodeId", execution.getNode(action.getUpstreamNodeId()));
+        assertEquals("valid upstreamNodeId", buildTriggerNode, execution.getNode(action.getUpstreamNodeId()));
     }
 
     @SuppressWarnings("deprecation")
@@ -571,6 +637,9 @@ public class BuildTriggerStepTest {
         step.setParameters(Arrays.asList(new StringParameterValue("branch", "default"), new BooleanParameterValue("correct", true)));
         // Note: This does not actually test the format of the JSON produced by the snippet generator for parameters, see generateSnippet* for tests of that behavior.
         st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
+        // Passwords parameters are handled specially via CustomDescribableModel
+        step.setParameters(Arrays.asList(new PasswordParameterValue("param-name", "secret")));
+        st.assertRoundTrip(step, "build job: 'downstream', parameters: [password(name: 'param-name', value: 'secret')]");
     }
 
     @Issue("JENKINS-26093")
@@ -604,7 +673,13 @@ public class BuildTriggerStepTest {
 
     @Test
     public void buildStepDocs() throws Exception {
-        SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+        try {
+            SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
+        } catch (Exception e) {
+            // TODO: Jenkins 2.236+ broke structs-based databinding and introspection of PasswordParameterValue, JENKINS-62305.
+            assumeThat(e.getMessage(), not(containsString("There's no @DataBoundConstructor on any constructor of class hudson.util.Secret")));
+            throw e;
+        }
     }
 
     @Test public void automaticParameterConversion() throws Exception {
@@ -677,6 +752,57 @@ public class BuildTriggerStepTest {
         WorkflowRun ds7 = ds.getBuildByNumber(7);
         j.assertLogNotContains("The parameter 'my-boolean' did not have the type expected", us7);
         j.assertLogContains("Boolean: true", ds7);
+    }
+
+    @Issue("JENKINS-62483")
+    @Test public void maintainParameterListOrder() throws Exception {
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        String params = "[string(name: 'PARAM1', value: 'p1'), " +
+                "string(name: 'PARAM2', value: 'p2'), " +
+                "string(name: 'PARAM3', value: 'p3'), " +
+                "string(name: 'PARAM4', value: 'p4')]";
+        us.setDefinition(new CpsFlowDefinition(String.format("build job: 'ds', parameters: %s", params), true));
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.addProperty(new ParametersDefinitionProperty(
+                new StringParameterDefinition("PARAM1", ""),
+                new StringParameterDefinition("PARAM2", ""),
+                new StringParameterDefinition("PARAM3", ""),
+                new StringParameterDefinition("PARAM4", "")));
+        ds.setDefinition(new CpsFlowDefinition("echo \"${PARAM1} - ${PARAM2} - ${PARAM3} - ${PARAM4}\"", true));
+        j.buildAndAssertSuccess(us);
+        ParametersAction buildParams = ds.getLastBuild().getAction(ParametersAction.class);
+        List<String> parameterNames = new ArrayList<>();
+        for (ParameterValue parameterValue : buildParams.getAllParameters()) {
+            parameterNames.add(parameterValue.getName());
+        }
+        assertThat(parameterNames, equalTo(Arrays.asList("PARAM1", "PARAM2", "PARAM3", "PARAM4")));
+    }
+
+    @Issue("JENKINS-62305")
+    @Test public void passwordParameter() throws Exception {
+        WorkflowJob ds = j.createProject(WorkflowJob.class);
+        ds.addProperty(new ParametersDefinitionProperty(
+                new PasswordParameterDefinition("my-password", "", "")));
+        ds.setDefinition(new CpsFlowDefinition(
+                "echo('Password: ' + params['my-password'])\n", true));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        us.setDefinition(new CpsFlowDefinition(
+                "build(job: '" + ds.getName() + "', parameters: [password(name: 'my-password', value: 'secret')])", true));
+        j.buildAndAssertSuccess(us);
+        j.assertLogContains("Password: secret", ds.getBuildByNumber(1));
+    }
+
+    @Test public void credentialsParameter() throws Exception {
+        WorkflowJob ds = j.createProject(WorkflowJob.class);
+        ds.addProperty(new ParametersDefinitionProperty(
+                new CredentialsParameterDefinition("my-credential", "", "", Credentials.class.getName(), false)));
+        ds.setDefinition(new CpsFlowDefinition(
+                "echo('Credential: ' + params['my-credential'])\n", true));
+        WorkflowJob us = j.createProject(WorkflowJob.class);
+        us.setDefinition(new CpsFlowDefinition(
+                "build(job: '" + ds.getName() + "', parameters: [credentials(name: 'my-credential', value: 'credential-id')])", true));
+        j.buildAndAssertSuccess(us);
+        j.assertLogContains("Credential: credential-id", ds.getBuildByNumber(1));
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {

@@ -42,7 +42,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,7 +81,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         List<Action> actions = new ArrayList<>();
-        actions.add(new CauseAction(new Cause.UpstreamCause(invokingRun)));
+        actions.add(new CauseAction(new BuildUpstreamCause(node, invokingRun)));
         actions.add(new BuildUpstreamNodeAction(node, invokingRun));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
@@ -157,7 +157,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     }
 
     private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) throws AbortException {
-        Map<String,ParameterValue> allParameters = new HashMap<>();
+        Map<String,ParameterValue> allParameters = new LinkedHashMap<>();
         for (ParameterValue pv : parameters) {
             allParameters.put(pv.getName(), pv);
         }
