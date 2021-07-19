@@ -1,5 +1,7 @@
 ## Changelog
 
+## Starting from 2.14 release notes are available as github release format https://github.com/jenkinsci/pipeline-build-step-plugin/releases
+
 ### 2.13
 
 Release date: 2020-08-04
