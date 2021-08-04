@@ -26,6 +26,7 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import javax.annotation.CheckForNull;
 import jenkins.model.CauseOfInterruption;
 
@@ -46,11 +47,22 @@ public final class DownstreamFailureCause extends CauseOfInterruption {
         return Run.fromExternalizableId(id);
     }
 
-    @Override public String getShortDescription() {
+    @Override public void print(TaskListener listener) {
+        String description;
         Run<?, ?> downstream = getDownstreamBuild();
         if (downstream != null) {
             // encodeTo(Run) calls getDisplayName, which does not include the project name.
-            return ModelHyperlinkNote.encodeTo("/" + downstream.getUrl(), downstream.getFullDisplayName()) + " completed with status " + downstream.getResult() + " (propagate: false to ignore)";
+            description = ModelHyperlinkNote.encodeTo("/" + downstream.getUrl(), downstream.getFullDisplayName()) + " completed with status " + downstream.getResult() + " (propagate: false to ignore)";
+        } else {
+            description = "Downstream build was not stable (propagate: false to ignore)";
+        }
+        listener.getLogger().println(description);
+    }
+
+    @Override public String getShortDescription() {
+        Run<?, ?> downstream = getDownstreamBuild();
+        if (downstream != null) {
+            return downstream.getFullDisplayName() + " completed with status " + downstream.getResult() + " (propagate: false to ignore)";
         } else {
             return "Downstream build was not stable (propagate: false to ignore)";
         }
