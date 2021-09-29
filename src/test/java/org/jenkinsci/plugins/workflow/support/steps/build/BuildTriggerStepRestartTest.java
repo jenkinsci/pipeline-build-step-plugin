@@ -4,7 +4,6 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.Queue;
 import hudson.model.Result;
-import hudson.model.queue.QueueTaskFuture;
 import java.util.Arrays;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
@@ -14,7 +13,6 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runners.model.Statement;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.JenkinsSessionRule;
@@ -63,9 +61,7 @@ public class BuildTriggerStepRestartTest extends Assert {
                               j.assertBuildStatusSuccess(r2);
         });
 
-        sessions.then(j -> {
-                j.jenkins.getItemByFullName("test1", FreeStyleProject.class).getBuildByNumber(1).delete();
-        });
+        sessions.then(j -> j.jenkins.getItemByFullName("test1", FreeStyleProject.class).getBuildByNumber(1).delete());
     }
 
     private static void assertFreeStyleProjectsInQueue(int count, JenkinsRule j) {

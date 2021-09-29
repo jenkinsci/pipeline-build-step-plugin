@@ -7,7 +7,6 @@ import hudson.AbortException;
 import hudson.Util;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
-import hudson.model.Cause;
 import hudson.model.CauseAction;
 import hudson.model.ChoiceParameterDefinition;
 import hudson.model.Computer;
@@ -26,7 +25,6 @@ import hudson.model.SimpleParameterDefinition;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
-import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
@@ -101,10 +99,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                 parameters = completeDefaultParameters(parameters, (Job) project);
                 actions.add(new ParametersAction(parameters));
             }
-            int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod().intValue() : -1;
+            int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod() : -1;
             Queue.Item queueItem =
                     ParameterizedJobMixIn.scheduleBuild2(
-                            (Job<?, ?>) project, quietPeriod, actions.toArray(new Action[actions.size()]));
+                            (Job<?, ?>) project, quietPeriod, actions.toArray(new Action[0]));
             if (queueItem == null || queueItem.getFuture() == null) {
                 throw new AbortException("Failed to trigger build of " + project.getFullName());
             }
@@ -187,7 +185,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                                 // the parameter versus the definition is expected, so we want to do the conversion, but
                                 // not log a warning.
                                 if (!CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES.contains(pDef.getClass().getName())) {
-                                    listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
+                                    listener.getLogger().printf("The parameter '%s' did not have the type expected by %s. Converting to %s.%n", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName);
                                     description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
                                 }
                                 ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
@@ -252,12 +250,12 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         boolean interrupted = false;
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
-            for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor((Run) exec)) {
+            for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor((Run<?, ?>) exec)) {
                 if (trigger.context.equals(context)) {
                     e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
                     trigger.interruption = cause;
                     try {
-                        ((Run) exec).save();
+                        ((Run<?, ?>) exec).save();
                     } catch (IOException x) {
                         LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
                     }
@@ -296,7 +294,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     private @CheckForNull String running(@Nonnull Executor e) {
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
-            Run<?,?> run = (Run) exec;
+            Run<?,?> run = (Run<?, ?>) exec;
             for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
                 if (trigger.context.equals(getContext())) {
                     return "running " + run;

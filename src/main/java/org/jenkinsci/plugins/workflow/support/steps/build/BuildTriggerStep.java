@@ -109,7 +109,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 if (job != null) {
                     ParametersDefinitionProperty pdp = job.getProperty(ParametersDefinitionProperty.class);
                     if (pdp != null) {
-                        List<ParameterValue> values = new ArrayList<ParameterValue>();
+                        List<ParameterValue> values = new ArrayList<>();
                         for (Object o : params) {
                             JSONObject jo = (JSONObject) o;
                             String name = jo.getString("name");
@@ -295,7 +295,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 return FormValidation.ok();
             }
             if (item instanceof Describable) {
-                return FormValidation.error(Messages.BuildTriggerStep_unsupported(((Describable)item).getDescriptor().getDisplayName()));
+                return FormValidation.error(Messages.BuildTriggerStep_unsupported(((Describable<?>)item).getDescriptor().getDisplayName()));
             }
             return FormValidation.error(Messages.BuildTriggerStep_unsupported(item.getClass().getName()));
         }
