@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Util;
 import hudson.console.ModelHyperlinkNote;
@@ -34,8 +36,6 @@ import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -205,7 +205,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     }
 
     @Override
-    public void stop(Throwable cause) throws Exception {
+    public void stop(@NonNull Throwable cause) throws Exception {
         StepContext context = getContext();
         Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null) {
@@ -291,7 +291,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         // TODO QueueTaskFuture does not allow us to record the queue item ID
         return "unsure what happened to downstream build";
     }
-    private @CheckForNull String running(@Nonnull Executor e) {
+    private @CheckForNull String running(@NonNull Executor e) {
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
             Run<?,?> run = (Run<?, ?>) exec;

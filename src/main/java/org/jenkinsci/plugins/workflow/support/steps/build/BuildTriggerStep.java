@@ -1,5 +1,7 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
 import hudson.model.AutoCompletionCandidates;
 import hudson.model.Describable;
@@ -98,7 +100,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
         // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
         // using the snippet generator does not match what would be neccessary for databinding to work automatically.
         // Only called via the snippet generator.
-        @Override public Step newInstance(StaplerRequest req, JSONObject formData) throws FormException {
+        @Override public Step newInstance(@Nullable StaplerRequest req, @NonNull JSONObject formData) throws FormException {
             BuildTriggerStep step = (BuildTriggerStep) super.newInstance(req, formData);
             // Cf. ParametersDefinitionProperty._doBuild:
             Object parameter = formData.get("parameter");
@@ -136,8 +138,9 @@ public class BuildTriggerStep extends AbstractStepImpl {
          * Ideally, password parameters would not be used at all with this step, but there was no documentation or
          * runtime warnings for this usage previously and so it is relatively common.
          */
+        @NonNull
         @Override
-        public Map<String, Object> customInstantiate(Map<String, Object> map) {
+        public Map<String, Object> customInstantiate(@NonNull Map<String, Object> map) {
             if (DescribableModel.of(PasswordParameterValue.class).getParameter("value").getErasedType() != Secret.class) {
                 return map;
             }
@@ -156,8 +159,9 @@ public class BuildTriggerStep extends AbstractStepImpl {
             );
         }
 
+        @NonNull
         @Override
-        public UninstantiatedDescribable customUninstantiate(UninstantiatedDescribable step) {
+        public UninstantiatedDescribable customUninstantiate(@NonNull UninstantiatedDescribable step) {
             Map<String, Object> newStepArgs = copyMapReplacingEntry(step.getArguments(), "parameters", List.class, parameters -> parameters.stream()
                     .map(parameter -> {
                         if (parameter instanceof UninstantiatedDescribable) {
@@ -194,6 +198,7 @@ public class BuildTriggerStep extends AbstractStepImpl {
             return "build";
         }
 
+        @NonNull
         @Override
         public String getDisplayName() {
             return "Build a job";
