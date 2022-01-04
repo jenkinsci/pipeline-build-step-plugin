@@ -47,7 +47,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class BuildTriggerStepExecution extends StepExecution {
+public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
     private static final Logger LOGGER = Logger.getLogger(BuildTriggerStepExecution.class.getName());
     private static final Set<String> CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES = ImmutableSet.of(
