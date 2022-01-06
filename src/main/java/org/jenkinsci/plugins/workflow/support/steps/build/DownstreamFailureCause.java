@@ -27,7 +27,7 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import jenkins.model.CauseOfInterruption;
 
 /**

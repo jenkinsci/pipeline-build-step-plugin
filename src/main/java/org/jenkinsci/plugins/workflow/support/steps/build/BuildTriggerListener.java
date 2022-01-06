@@ -9,7 +9,7 @@ import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -39,7 +39,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     }
 
     @Override
-    public void onCompleted(Run<?,?> run, @Nonnull TaskListener listener) {
+    public void onCompleted(Run<?,?> run, @NonNull TaskListener listener) {
         for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
             LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, trigger.context});
             if (!trigger.propagate || run.getResult() == Result.SUCCESS) {

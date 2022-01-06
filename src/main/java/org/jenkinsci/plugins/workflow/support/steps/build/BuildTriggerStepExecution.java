@@ -34,8 +34,8 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -59,7 +59,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
     private final transient BuildTriggerStep step;
 
-    public BuildTriggerStepExecution(BuildTriggerStep step, @Nonnull StepContext context) {
+    public BuildTriggerStepExecution(BuildTriggerStep step, @NonNull StepContext context) {
         super(context);
         this.step = step;
     }
@@ -291,7 +291,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         // TODO QueueTaskFuture does not allow us to record the queue item ID
         return "unsure what happened to downstream build";
     }
-    private @CheckForNull String running(@Nonnull Executor e) {
+    private @CheckForNull String running(@NonNull Executor e) {
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
             Run<?,?> run = (Run) exec;
