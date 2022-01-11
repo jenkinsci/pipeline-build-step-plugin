@@ -24,10 +24,14 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import java.util.concurrent.Callable;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import org.jenkinsci.plugins.workflow.steps.StepConfigTester;
-import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -41,7 +45,7 @@ public class BuildTriggerStepConfigTest {
     @Test public void configRoundTrip() throws Exception {
         BuildTriggerStep s = new BuildTriggerStep("ds");
         s = new StepConfigTester(r).configRoundTrip(s);
-        assertEquals(null, s.getQuietPeriod());
+        assertNull(s.getQuietPeriod());
         assertTrue(s.isPropagate());
         s.setPropagate(false);
         s.setQuietPeriod(5);
@@ -55,11 +59,10 @@ public class BuildTriggerStepConfigTest {
 
     @Issue("JENKINS-38114")
     @Test public void helpWait() throws Exception {
-        assertThat(r.createWebClient().goTo(r.executeOnServer(new Callable<String>() {
-            @Override public String call() throws Exception {
-                return r.jenkins.getDescriptorByType(BuildTriggerStep.DescriptorImpl.class).getHelpFile("wait");
-            }
-        }).replaceFirst("^/", ""), /* TODO why is no content type set? */null).getWebResponse().getContentAsString(), containsString("<dt><code>buildVariables</code></dt>"));
+        assertThat(r.createWebClient().goTo(r.executeOnServer(()
+                                -> r.jenkins.getDescriptorByType(BuildTriggerStep.DescriptorImpl.class).getHelpFile("wait"))
+                        .replaceFirst("^/", ""), /* TODO why is no content type set? */null)
+                .getWebResponse().getContentAsString(), containsString("<dt><code>buildVariables</code></dt>"));
     }
 
 }

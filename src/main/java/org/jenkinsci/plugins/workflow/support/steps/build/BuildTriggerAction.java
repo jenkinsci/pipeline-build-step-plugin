@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.model.Action;
 import hudson.model.Actionable;
 import hudson.model.InvisibleAction;
@@ -9,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
 @SuppressWarnings("SynchronizeOnNonFinalField")
@@ -31,7 +31,8 @@ class BuildTriggerAction extends InvisibleAction implements FoldableAction {
         final boolean propagate;
 
         /** Record of cancellation cause passed to {@link BuildTriggerStepExecution#stop}, if any. */
-        @CheckForNull Throwable interruption;
+        @CheckForNull
+        Throwable interruption;
 
         Trigger(StepContext context, boolean propagate) {
             this.context = context;
