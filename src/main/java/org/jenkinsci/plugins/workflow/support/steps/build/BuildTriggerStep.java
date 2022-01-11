@@ -14,12 +14,17 @@ import hudson.model.ParameterValue;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
@@ -29,9 +34,11 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
+import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
+import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.util.StaplerReferer;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -41,7 +48,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-public class BuildTriggerStep extends AbstractStepImpl {
+public class BuildTriggerStep extends Step {
 
     private final String job;
     private List<ParameterValue> parameters;
@@ -90,12 +97,13 @@ public class BuildTriggerStep extends AbstractStepImpl {
         this.propagate = propagate;
     }
 
-    @Extension
-    public static class DescriptorImpl extends AbstractStepDescriptorImpl implements CustomDescribableModel {
+    @Override
+    public StepExecution start(StepContext context) {
+        return new BuildTriggerStepExecution(this, context);
+    }
 
-        public DescriptorImpl() {
-            super(BuildTriggerStepExecution.class);
-        }
+    @Extension
+    public static class DescriptorImpl extends StepDescriptor implements CustomDescribableModel {
 
         // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
         // using the snippet generator does not match what would be neccessary for databinding to work automatically.
@@ -191,6 +199,13 @@ public class BuildTriggerStep extends AbstractStepImpl {
                 }
             }
             return newMap;
+        }
+
+        @Override
+        public Set<? extends Class<?>> getRequiredContext() {
+            Set<Class<?>> context = new HashSet<>();
+            Collections.addAll(context, FlowNode.class, Run.class, TaskListener.class);
+            return Collections.unmodifiableSet(context);
         }
 
         @Override
