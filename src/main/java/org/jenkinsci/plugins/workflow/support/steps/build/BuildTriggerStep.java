@@ -10,6 +10,7 @@ import hudson.model.Job;
 import hudson.model.ParameterDefinition;
 import hudson.model.ParameterValue;
 import hudson.model.ParametersDefinitionProperty;
+import hudson.model.PasswordParameterDefinition;
 import hudson.model.PasswordParameterValue;
 import hudson.model.Queue;
 import hudson.util.FormValidation;
@@ -117,7 +118,13 @@ public class BuildTriggerStep extends AbstractStepImpl {
                             if (d == null) {
                                 throw new IllegalArgumentException("No such parameter definition: " + name);
                             }
-                            ParameterValue parameterValue = d.createValue(req, jo);
+                            ParameterValue parameterValue;
+                            if (d instanceof PasswordParameterDefinition) {
+                                parameterValue = req.bindJSON(PasswordParameterValue.class, jo);
+                                parameterValue.setDescription(d.getDescription());
+                            } else {
+                                parameterValue = d.createValue(req, jo);
+                            }
                             if (parameterValue != null) {
                                 values.add(parameterValue);
                             } else {
