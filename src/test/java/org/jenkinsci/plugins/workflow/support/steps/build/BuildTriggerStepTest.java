@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+
 import jenkins.branch.MultiBranchProjectFactory;
 import jenkins.branch.MultiBranchProjectFactoryDescriptor;
 import jenkins.branch.OrganizationFolder;
@@ -802,6 +803,19 @@ public class BuildTriggerStepTest {
                 "build(job: '" + ds.getName() + "', parameters: [credentials(name: 'my-credential', value: 'credential-id')])", true));
         j.buildAndAssertSuccess(us);
         j.assertLogContains("Credential: credential-id", ds.getBuildByNumber(1));
+    }
+
+    @Issue("SECURITY-2519")
+    @Test public void generateSnippetForBuildTriggerWhenDefaultPasswordParameterThenDoNotReturnRealPassword() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        FreeStyleProject us = j.createProject(FreeStyleProject.class, "project1");
+        us.addProperty(new ParametersDefinitionProperty(
+                new PasswordParameterDefinition("password", "mySecret", "description")
+        ));
+
+        String snippet = "build job: 'project1', parameters: [password(name: 'password', description: 'description', value: '" + PasswordParameterDefinition.DEFAULT_VALUE + "')]";
+
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'project1', 'parameter': {'name': 'password', 'description': 'description', 'value': '" + PasswordParameterDefinition.DEFAULT_VALUE + "'}}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {
