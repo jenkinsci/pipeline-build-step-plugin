@@ -24,10 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Run;
 import hudson.model.TaskListener;
-import javax.annotation.CheckForNull;
 import jenkins.model.CauseOfInterruption;
 
 /**
