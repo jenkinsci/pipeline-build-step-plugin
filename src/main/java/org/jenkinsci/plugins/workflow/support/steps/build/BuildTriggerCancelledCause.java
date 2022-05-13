@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import java.io.Serializable;
 import jenkins.model.CauseOfInterruption;
 
 /**

@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+
 import jenkins.branch.MultiBranchProjectFactory;
 import jenkins.branch.MultiBranchProjectFactoryDescriptor;
 import jenkins.branch.OrganizationFolder;
@@ -222,7 +223,7 @@ public class BuildTriggerStepTest {
         p2.getBuildersList().add(new SleepBuilder(1));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("parallel(test1: {\n" +
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("parallel(test1: {\n" +
                 "          build('test1');\n" +
                 "        }, test2: {\n" +
                 "          build('test2');\n" +
@@ -238,7 +239,7 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n"), true));
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
 
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
@@ -269,7 +270,7 @@ public class BuildTriggerStepTest {
     private void downstreamResult(Result result) throws Exception {
         FreeStyleProject ds = j.createFreeStyleProject();
         ds.getBuildersList().add(new TestBuilder() {
-            @Override public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
+            @Override public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
                 build.setResult(result);
                 return true;
             }
@@ -285,7 +286,7 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Arrays.asList("build('test1');"), "\n"), true));
+        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
 
         j.jenkins.setNumExecutors(0); //should force freestyle build to remain in the queue?
 
@@ -541,8 +542,7 @@ public class BuildTriggerStepTest {
         public boolean recognizes(@NonNull ItemGroup<?> parent, @NonNull String name,
                                   @NonNull List<? extends SCMSource> scmSources,
                                   @NonNull Map<String, Object> attributes,
-                                  @CheckForNull SCMHeadEvent<?> event, @NonNull TaskListener listener)
-                throws IOException, InterruptedException {
+                                  @CheckForNull SCMHeadEvent<?> event, @NonNull TaskListener listener) {
             return false;
         }
 
@@ -638,7 +638,7 @@ public class BuildTriggerStepTest {
         // Note: This does not actually test the format of the JSON produced by the snippet generator for parameters, see generateSnippet* for tests of that behavior.
         st.assertRoundTrip(step, "build job: 'downstream', parameters: [string(name: 'branch', value: 'default'), booleanParam(name: 'correct', value: true)]");
         // Passwords parameters are handled specially via CustomDescribableModel
-        step.setParameters(Arrays.asList(new PasswordParameterValue("param-name", "secret")));
+        step.setParameters(Collections.singletonList(new PasswordParameterValue("param-name", "secret")));
         st.assertRoundTrip(step, "build job: 'downstream', parameters: [password(name: 'param-name', value: 'secret')]");
     }
 
@@ -803,6 +803,19 @@ public class BuildTriggerStepTest {
                 "build(job: '" + ds.getName() + "', parameters: [credentials(name: 'my-credential', value: 'credential-id')])", true));
         j.buildAndAssertSuccess(us);
         j.assertLogContains("Credential: credential-id", ds.getBuildByNumber(1));
+    }
+
+    @Issue("SECURITY-2519")
+    @Test public void generateSnippetForBuildTriggerWhenDefaultPasswordParameterThenDoNotReturnRealPassword() throws Exception {
+        SnippetizerTester st = new SnippetizerTester(j);
+        FreeStyleProject us = j.createProject(FreeStyleProject.class, "project1");
+        us.addProperty(new ParametersDefinitionProperty(
+                new PasswordParameterDefinition("password", "mySecret", "description")
+        ));
+
+        String snippet = "build job: 'project1', parameters: [password(name: 'password', description: 'description', value: '" + PasswordParameterDefinition.DEFAULT_VALUE + "')]";
+
+        st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'project1', 'parameter': {'name': 'password', 'description': 'description', 'value': '" + PasswordParameterDefinition.DEFAULT_VALUE + "'}}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {

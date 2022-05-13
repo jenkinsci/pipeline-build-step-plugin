@@ -24,8 +24,10 @@
 
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.console.ModelHyperlinkNote;
 import hudson.model.Run;
-import javax.annotation.CheckForNull;
+import hudson.model.TaskListener;
 import jenkins.model.CauseOfInterruption;
 
 /**
@@ -43,6 +45,18 @@ public final class DownstreamFailureCause extends CauseOfInterruption {
 
     public @CheckForNull Run<?, ?> getDownstreamBuild() {
         return Run.fromExternalizableId(id);
+    }
+
+    @Override public void print(TaskListener listener) {
+        String description;
+        Run<?, ?> downstream = getDownstreamBuild();
+        if (downstream != null) {
+            // encodeTo(Run) calls getDisplayName, which does not include the project name.
+            description = ModelHyperlinkNote.encodeTo("/" + downstream.getUrl(), downstream.getFullDisplayName()) + " completed with status " + downstream.getResult() + " (propagate: false to ignore)";
+        } else {
+            description = "Downstream build was not stable (propagate: false to ignore)";
+        }
+        listener.getLogger().println(description);
     }
 
     @Override public String getShortDescription() {

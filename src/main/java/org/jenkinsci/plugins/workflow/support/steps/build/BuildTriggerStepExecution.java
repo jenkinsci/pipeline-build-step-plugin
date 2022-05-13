@@ -2,12 +2,12 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.inject.Inject;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Util;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Action;
-import hudson.model.Cause;
 import hudson.model.CauseAction;
 import hudson.model.ChoiceParameterDefinition;
 import hudson.model.Computer;
@@ -26,7 +26,6 @@ import hudson.model.SimpleParameterDefinition;
 import hudson.model.StringParameterDefinition;
 import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
-import hudson.model.queue.QueueTaskFuture;
 import hudson.model.queue.ScheduleResult;
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
@@ -34,10 +33,7 @@ import org.jenkinsci.plugins.workflow.actions.LabelAction;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -59,18 +55,18 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             "org.biouno.unochoice.ChoiceParameter",
             "org.biouno.unochoice.DynamicReferenceParameter");
 
-    @StepContextParameter
-    private transient TaskListener listener;
-    @StepContextParameter private transient Run<?,?> invokingRun;
-    @StepContextParameter private transient FlowNode node;
+    private final transient BuildTriggerStep step;
 
-    @Inject(optional=true) transient BuildTriggerStep step;
+    public BuildTriggerStepExecution(BuildTriggerStep step, @NonNull StepContext context) {
+        super(context);
+        this.step = step;
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"}) // cannot get from ParameterizedJob back to ParameterizedJobMixIn trivially
     @Override
     public boolean start() throws Exception {
         String job = step.getJob();
-        Item item = Jenkins.get().getItem(job, invokingRun.getParent(), Item.class);
+        Item item = Jenkins.get().getItem(job, getContext().get(Run.class).getParent(), Item.class);
         if (item == null) {
             throw new AbortException("No item named " + job + " found");
         }
@@ -81,14 +77,14 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         List<Action> actions = new ArrayList<>();
-        actions.add(new CauseAction(new BuildUpstreamCause(node, invokingRun)));
-        actions.add(new BuildUpstreamNodeAction(node, invokingRun));
+        actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), getContext().get(Run.class))));
+        actions.add(new BuildUpstreamNodeAction(getContext().get(FlowNode.class), getContext().get(Run.class)));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
-            listener.getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
+            getContext().get(TaskListener.class).getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
-            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
+            getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
 
             if (step.getWait()) {
                 StepContext context = getContext();
@@ -101,10 +97,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                 parameters = completeDefaultParameters(parameters, (Job) project);
                 actions.add(new ParametersAction(parameters));
             }
-            int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod().intValue() : -1;
+            int quietPeriod = step.getQuietPeriod() != null ? step.getQuietPeriod() : -1;
             Queue.Item queueItem =
                     ParameterizedJobMixIn.scheduleBuild2(
-                            (Job<?, ?>) project, quietPeriod, actions.toArray(new Action[actions.size()]));
+                            (Job<?, ?>) project, quietPeriod, actions.toArray(new Action[0]));
             if (queueItem == null || queueItem.getFuture() == null) {
                 throw new AbortException("Failed to trigger build of " + project.getFullName());
             }
@@ -113,8 +109,8 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                 throw new AbortException("Item type does not support parameters");
             }
             Queue.Task task = (Queue.Task) item;
-            listener.getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
-            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
+            getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
+            getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
             if (step.getWait()) {
                 StepContext context = getContext();
                 actions.add(new BuildTriggerAction(context, step.isPropagate()));
@@ -156,7 +152,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
     }
 
-    private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) throws AbortException {
+    private List<ParameterValue> completeDefaultParameters(List<ParameterValue> parameters, Job<?,?> project) throws IOException, InterruptedException {
         Map<String,ParameterValue> allParameters = new LinkedHashMap<>();
         for (ParameterValue pv : parameters) {
             allParameters.put(pv.getName(), pv);
@@ -181,8 +177,8 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                                 // the parameter versus the definition is expected, so we want to do the conversion, but
                                 // not log a warning.
                                 if (!CHOICE_PARAMETER_DEFINITION_LIKE_CLASSES.contains(pDef.getClass().getName())) {
-                                    listener.getLogger().println(String.format("The parameter '%s' did not have the type expected by %s. Converting to %s.", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName));
-                                    description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, invokingRun.toString());
+                                    getContext().get(TaskListener.class).getLogger().printf("The parameter '%s' did not have the type expected by %s. Converting to %s.%n", pv.getName(), ModelHyperlinkNote.encodeTo(project), pDefDisplayName);
+                                    description = Messages.BuildTriggerStepExecution_convertedParameterDescription(description, pDefDisplayName, getContext().get(Run.class).toString());
                                 }
                                 ParameterValue convertedValue = ((SimpleParameterDefinition) pDef).createValue((String) pv.getValue());
                                 allParameters.put(pDef.getName(), convertedValue);
@@ -206,7 +202,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     }
 
     @Override
-    public void stop(Throwable cause) throws Exception {
+    public void stop(@NonNull Throwable cause) throws Exception {
         StepContext context = getContext();
         Jenkins jenkins = Jenkins.getInstanceOrNull();
         if (jenkins == null) {
@@ -251,12 +247,12 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         boolean interrupted = false;
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
-            for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor((Run) exec)) {
+            for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor((Run<?, ?>) exec)) {
                 if (trigger.context.equals(context)) {
                     e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
                     trigger.interruption = cause;
                     try {
-                        ((Run) exec).save();
+                        ((Run<?, ?>) exec).save();
                     } catch (IOException x) {
                         LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
                     }
@@ -292,10 +288,10 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         // TODO QueueTaskFuture does not allow us to record the queue item ID
         return "unsure what happened to downstream build";
     }
-    private @CheckForNull String running(@Nonnull Executor e) {
+    private @CheckForNull String running(@NonNull Executor e) {
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
-            Run<?,?> run = (Run) exec;
+            Run<?,?> run = (Run<?, ?>) exec;
             for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
                 if (trigger.context.equals(getContext())) {
                     return "running " + run;
