@@ -14,14 +14,14 @@ The Pipeline Syntax Snippet Generator helps the user generate steps for Jenkins 
 
 The following features are available in Pipeline:
 
-##### Project to Build
-This is the name or path of a downstream job to build. It may be another Pipeline job, but more commonly a freestyle or other project. Use a simple name if the job is in the same folder as this upstream Pipeline job; otherwise can use relative paths like `../sister-folder/downstream` or absolute paths like `/top-level-folder/nested-folder/downstream`. Example;
+### Project to Build
+This is the name or path of a downstream job to build. It may be another Pipeline job, but more commonly a freestyle or other project. Use a simple name if the job is in the same folder as this upstream Pipeline job; otherwise use relative paths like `../sister-folder/downstream` or absolute paths like `/top-level-folder/nested-folder/downstream`. Example;
 ```groovy
   job: 'Hello-World'
 ```
 
-##### Wait for completion
-You may ask that this Pipeline build wait for completion of the downstream build. In that case the return value of the step is an object on which you can obtain read-only properties: so you can inspect its properties such as result using `.result` and so on.
+### Wait for completion
+You may ask that this Pipeline build wait for completion of the downstream build. In this case, the return value of the step is an object on which you can obtain read-only properties; so you can inspect its properties such as result using `.result` and so on.
 Properties of build upon completion are;
 * getBuildCauses: Returns a JSON array of build causes for the current build
 ```groovy
@@ -88,8 +88,10 @@ Properties of build upon completion are;
 * keepLog: true if the log file for this build should be kept and not deleted.
   If you do not wait, this step succeeds so long as the downstream build can be added to the queue (it will not even have been started). In that case there is currently no return value.
 
-##### Propagate error
-If enabled (default state), then the result of this step is that of the downstream build (e.g., success, unstable, failure, not built, or aborted) i.e. if the downstream build fails then the upstream build fails also. If disabled, then this step succeeds even if the downstream build is unstable, failed, etc.; use the result property of the return value as needed i.e if the downstream build fails it does not affect that of the upstream build. Example;
+### Propagate error
+If this option is enabled, this step inherits the status of the downstream build, for example:  success, unstable, failure, not built, or aborted.
+If you disable this option, this step succeeds regardless of issues with the downstream build.
+Use the result property of the return value as needed. Example;
 ```groovy
 build propagate: false, job: 'Downstream'
 ```
@@ -100,21 +102,21 @@ Explicitly disabling both propagate and wait is redundant, since propagate is ig
 
 ---
 
-##### Quiet Period
+### Quiet Period
 Optional alternate quiet period (in seconds) before building. If unset, defaults to the quiet period defined by the downstream project (or finally to the system-wide default quiet period).
 Example;
 ```groovy
 build quietPeriod: 3, job: 'Downstream'
 ```
 
-##### Parameters
+### Parameters
 A list of parameters to pass to the downstream job. When passing secrets to downstream jobs, prefer credentials parameters over password parameters.
 Example;
 ```groovy
 build job: 'Downstream', parameters: [credentials('name', 'credentials-id')]
 ```
 
-### Passing secret values to other jobs
+## Passing secret values to other jobs
 
 The recommended approach to pass secret values using the `build` step is to use credentials parameters:
 
