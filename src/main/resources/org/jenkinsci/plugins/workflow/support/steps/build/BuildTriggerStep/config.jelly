@@ -43,7 +43,7 @@ THE SOFTWARE.
         <script>
             function loadParams() {
                 var div = $$('params');
-                new Ajax.Request('${descriptor.descriptorUrl}/parameters?job=' + encodeURIComponent($$('${jobFieldId}').value) + '&amp;context=' + encodeURIComponent('${descriptor.context}'), {
+                new Ajax.Request('${descriptor.descriptorUrl}/parameters?job=' + encodeURIComponent($$('${jobFieldId}').value) + '&amp;context=${descriptor.contextEncoded}', {
                     method : 'get',
                     onSuccess : function(x) {
                         div.innerHTML = x.responseText;
