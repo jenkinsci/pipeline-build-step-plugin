@@ -26,16 +26,36 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.gargoylesoftware.htmlunit.AlertHandler;
+import com.gargoylesoftware.htmlunit.Page;
+import com.gargoylesoftware.htmlunit.html.DomElement;
+import com.gargoylesoftware.htmlunit.html.HtmlElement;
+import com.gargoylesoftware.htmlunit.html.HtmlForm;
+import com.gargoylesoftware.htmlunit.html.HtmlInput;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlSelect;
+import com.gargoylesoftware.htmlunit.html.HtmlTextInput;
+import com.gargoylesoftware.htmlunit.javascript.host.html.HTMLInputElement;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.StepConfigTester;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.xml.sax.SAXException;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 public class BuildTriggerStepConfigTest {
 
@@ -63,6 +83,36 @@ public class BuildTriggerStepConfigTest {
                                 -> r.jenkins.getDescriptorByType(BuildTriggerStep.DescriptorImpl.class).getHelpFile("wait"))
                         .replaceFirst("^/", ""), /* TODO why is no content type set? */null)
                 .getWebResponse().getContentAsString(), containsString("<dt><code>buildVariables</code></dt>"));
+    }
+
+    @Test @Issue("SECURITY-3019")
+    public void escapedSnippetConfig() throws IOException, SAXException {
+        final String jobName = "'+alert(123)+'";
+        WorkflowJob j = r.createProject(WorkflowJob.class, jobName);
+        try (JenkinsRule.WebClient webClient = r.createWebClient()) {
+            Alerter alerter = new Alerter();
+            webClient.setAlertHandler(alerter);
+            HtmlPage page = webClient.getPage(j, "pipeline-syntax");
+            final HtmlSelect select = (HtmlSelect)page.getElementsByTagName("select").get(0);
+            page = select.setSelectedAttribute("build: Build a job", true);
+            webClient.waitForBackgroundJavaScript(2000);
+            //final HtmlForm config = page.getFormByName("config");
+            final List<DomElement> inputs = page.getElementsByName("_.job"); //config.getInputsByName("_.job");
+            assertThat(inputs, hasSize(1));
+            final HtmlTextInput jobNameInput = (HtmlTextInput)inputs.get(0);
+            jobNameInput.focus();
+            jobNameInput.blur();
+            assertThat(alerter.messages, empty()); //Fails before the fix
+        }
+
+    }
+
+    static class Alerter implements AlertHandler {
+        List<String> messages = Collections.synchronizedList(new ArrayList<>());
+        @Override
+        public void handleAlert(final Page page, final String message) {
+            messages.add(message);
+        }
     }
 
 }
