@@ -29,23 +29,29 @@ class BuildTriggerAction extends InvisibleAction implements FoldableAction {
         final StepContext context;
 
         final boolean propagate;
+        final boolean waitForStart;
 
         /** Record of cancellation cause passed to {@link BuildTriggerStepExecution#stop}, if any. */
         @CheckForNull
         Throwable interruption;
 
-        Trigger(StepContext context, boolean propagate) {
+        Trigger(StepContext context, boolean propagate, boolean waitForStart) {
             this.context = context;
             this.propagate = propagate;
+            this.waitForStart = waitForStart;
+        }
+
+        Trigger(StepContext context, boolean propagate) {
+           this(context, propagate, false);
         }
 
     }
 
     private /* final */ List<Trigger> triggers;
 
-    BuildTriggerAction(StepContext context, boolean propagate) {
+    BuildTriggerAction(StepContext context, boolean propagate, boolean waitForStart) {
         triggers = new ArrayList<>();
-        triggers.add(new Trigger(context, propagate));
+        triggers.add(new Trigger(context, propagate, waitForStart));
     }
 
     private Object readResolve() {

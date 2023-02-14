@@ -411,6 +411,13 @@ public class BuildTriggerStepTest {
         j.buildAndAssertSuccess(us);
     }
 
+    @Test public void waitForStart() throws Exception {
+        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', waitForStart: true", true));
+        j.assertLogContains("Starting building:", j.buildAndAssertSuccess(us));
+    }
+
     @Test public void rejectedStart() throws Exception {
         j.createFreeStyleProject("ds");
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");

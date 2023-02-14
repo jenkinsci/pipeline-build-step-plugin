@@ -29,6 +29,9 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                     TaskListener taskListener = stepContext.get(TaskListener.class);
                     // encodeTo(Run) calls getDisplayName, which does not include the project name.
                     taskListener.getLogger().println("Starting building: " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()));
+                    if (trigger.waitForStart) {
+                        stepContext.onSuccess(new RunWrapper(run, false));
+                    }
                 } catch (Exception e) {
                     LOGGER.log(Level.WARNING, null, e);
                 }
@@ -41,16 +44,18 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     @Override
     public void onCompleted(Run<?,?> run, @NonNull TaskListener listener) {
         for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
-            LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, trigger.context});
-            if (!trigger.propagate || run.getResult() == Result.SUCCESS) {
-                if (trigger.interruption == null) {
-                    trigger.context.onSuccess(new RunWrapper(run, false));
+            if (!trigger.waitForStart) {
+                LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, trigger.context});
+                if (!trigger.propagate || run.getResult() == Result.SUCCESS) {
+                    if (trigger.interruption == null) {
+                        trigger.context.onSuccess(new RunWrapper(run, false));
+                    } else {
+                        trigger.context.onFailure(trigger.interruption);
+                    }
                 } else {
-                    trigger.context.onFailure(trigger.interruption);
+                    Result result = run.getResult();
+                    trigger.context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, false, new DownstreamFailureCause(run)));
                 }
-            } else {
-                Result result = run.getResult();
-                trigger.context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, false, new DownstreamFailureCause(run)));
             }
         }
         run.removeActions(BuildTriggerAction.class);
