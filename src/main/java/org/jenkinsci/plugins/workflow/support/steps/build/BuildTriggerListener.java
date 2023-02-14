@@ -41,16 +41,27 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     @Override
     public void onCompleted(Run<?,?> run, @NonNull TaskListener listener) {
         for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
-            LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, trigger.context});
-            if (!trigger.propagate || run.getResult() == Result.SUCCESS) {
+            StepContext stepContext = trigger.context;
+            LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, stepContext});
+            Result result = run.getResult();
+            if (result == null) { /* probably impossible */
+                result = Result.FAILURE;
+            }
+
+            try {
+                stepContext.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
+            }  catch (Exception e) {
+                LOGGER.log(Level.WARNING, null, e);
+            }
+
+            if (!trigger.propagate || result == Result.SUCCESS) {
                 if (trigger.interruption == null) {
-                    trigger.context.onSuccess(new RunWrapper(run, false));
+                    stepContext.onSuccess(new RunWrapper(run, false));
                 } else {
-                    trigger.context.onFailure(trigger.interruption);
+                    stepContext.onFailure(trigger.interruption);
                 }
             } else {
-                Result result = run.getResult();
-                trigger.context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, false, new DownstreamFailureCause(run)));
+                stepContext.onFailure(new FlowInterruptedException(result, false, new DownstreamFailureCause(run)));
             }
         }
         run.removeActions(BuildTriggerAction.class);
