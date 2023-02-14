@@ -11,6 +11,8 @@ import hudson.model.listeners.RunListener;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.Timer;
+import org.jenkinsci.plugins.workflow.actions.WarningAction;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 
@@ -50,6 +52,9 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
 
             try {
                 stepContext.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
+                if (result != Result.SUCCESS) {
+                    stepContext.get(FlowNode.class).addOrReplaceAction(new WarningAction(result));
+                }
             }  catch (Exception e) {
                 LOGGER.log(Level.WARNING, null, e);
             }
