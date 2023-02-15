@@ -1,11 +1,11 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import hudson.model.Descriptor;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import hudson.model.Run;
-
-import static org.junit.Assert.assertEquals;
-
+import hudson.tasks.Builder;
+import hudson.util.DescribableList;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.junit.ClassRule;
@@ -13,8 +13,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.BuildWatcher;
 import org.jvnet.hudson.test.FailureBuilder;
+import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+
+import static org.junit.Assert.assertEquals;
 
 public class WaitForBuildStepTest {
 
@@ -23,7 +26,10 @@ public class WaitForBuildStepTest {
     @Rule public LoggerRule logging = new LoggerRule();
 
     @Test public void waitForBuild() throws Exception {
-        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        DescribableList<Builder, Descriptor<Builder>> buildersList = ds.getBuildersList();
+        buildersList.add(new SleepBuilder(500));
+        buildersList.add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
@@ -34,7 +40,10 @@ public class WaitForBuildStepTest {
     }
 
     @Test public void waitForBuildPropagte() throws Exception {
-        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        DescribableList<Builder, Descriptor<Builder>> buildersList = ds.getBuildersList();
+        buildersList.add(new SleepBuilder(500));
+        buildersList.add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
