@@ -41,10 +41,6 @@ class BuildTriggerAction extends InvisibleAction implements FoldableAction {
             this.waitForStart = waitForStart;
         }
 
-        Trigger(StepContext context, boolean propagate) {
-           this(context, propagate, false);
-        }
-
     }
 
     private /* final */ List<Trigger> triggers;
