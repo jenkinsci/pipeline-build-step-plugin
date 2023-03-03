@@ -53,7 +53,7 @@ class BuildTriggerAction extends InvisibleAction implements FoldableAction {
     private Object readResolve() {
         if (triggers == null) {
             triggers = new ArrayList<>();
-            triggers.add(new Trigger(context, propagate != null ? propagate : /* old serialized record */ true));
+            triggers.add(new Trigger(context, propagate != null ? propagate : /* old serialized record */ true, false));
             context = null;
             propagate = null;
         }
