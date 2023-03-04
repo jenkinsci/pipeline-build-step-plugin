@@ -57,6 +57,7 @@ public class BuildTriggerStep extends Step {
     private final String job;
     private List<ParameterValue> parameters;
     private boolean wait = true;
+    private boolean waitForStart = false;
     private boolean propagate = true;
     private Integer quietPeriod;
 
@@ -83,6 +84,14 @@ public class BuildTriggerStep extends Step {
 
     @DataBoundSetter public void setWait(boolean wait) {
         this.wait = wait;
+    }
+
+    public boolean getWaitForStart() {
+        return waitForStart;
+    }
+
+    @DataBoundSetter public void setWaitForStart(boolean waitForStart) {
+        this.waitForStart = waitForStart;
     }
 
     public Integer getQuietPeriod() {
