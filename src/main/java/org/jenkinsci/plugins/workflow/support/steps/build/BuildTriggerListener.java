@@ -56,10 +56,8 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
 
                 try {
                     stepContext.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
-                    if (trigger.propagate) {
-                        if (result != Result.SUCCESS) {
-                            stepContext.get(FlowNode.class).addOrReplaceAction(new WarningAction(result));
-                        }
+                    if (trigger.propagate && result != Result.SUCCESS) {
+                        stepContext.get(FlowNode.class).addOrReplaceAction(new WarningAction(result));
                     }
                 }  catch (Exception e) {
                     LOGGER.log(Level.WARNING, null, e);
