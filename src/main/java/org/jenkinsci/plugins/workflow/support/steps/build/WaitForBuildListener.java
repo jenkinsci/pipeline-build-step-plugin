@@ -2,6 +2,7 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.console.ModelHyperlinkNote;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -26,6 +27,7 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
 
             Result result = run.getResult();
             try {
+                context.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
                 if (result.isWorseThan(Result.SUCCESS)) {
                     context.get(FlowNode.class).addOrReplaceAction(new WarningAction(result));
                 }
