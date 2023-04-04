@@ -133,8 +133,8 @@ public class BuildTriggerStepTest {
     @Test public void failingBuildWithWarningAction() throws Exception {
         j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
-        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds', propagate: false)", true));
-        WorkflowRun lastUpstream = j.buildAndAssertSuccess(upstream);
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
+        WorkflowRun lastUpstream = j.buildAndAssertStatus(Result.FAILURE, upstream);
         j.assertLogContains("completed: FAILURE", lastUpstream);
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
@@ -146,8 +146,8 @@ public class BuildTriggerStepTest {
     @Test public void unstableBuildWithWarningAction() throws Exception {
         j.createFreeStyleProject("ds").getBuildersList().add(new UnstableBuilder());
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
-        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds', propagate: false)", true));
-        WorkflowRun lastUpstream = j.buildAndAssertSuccess(upstream);
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
+        WorkflowRun lastUpstream = j.buildAndAssertStatus(Result.UNSTABLE, upstream);
         j.assertLogContains("completed: UNSTABLE", lastUpstream);
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
@@ -159,7 +159,7 @@ public class BuildTriggerStepTest {
     @Test public void successBuildNoWarningAction() throws Exception {
         j.createFreeStyleProject("ds");
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
-        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds', propagate: false)", true));
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
         WorkflowRun lastUpstream = j.buildAndAssertSuccess(upstream);
         j.assertLogContains("completed: SUCCESS", lastUpstream);
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
