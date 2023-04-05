@@ -28,7 +28,7 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
             Result result = run.getResult();
             try {
                 context.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
-                if (result.isWorseThan(Result.SUCCESS)) {
+                if (action.propagate && result.isWorseThan(Result.SUCCESS)) {
                     context.get(FlowNode.class).addOrReplaceAction(new WarningAction(result));
                 }
             } catch (Exception e) {

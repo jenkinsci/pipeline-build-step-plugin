@@ -83,9 +83,12 @@ public class WaitForBuildStepTest {
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
             "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
-            "def completeDs = waitForBuild runId: dsRunId\n" +
-            "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
-        j.assertLogContains("'ds' completed with status UNSTABLE", j.buildAndAssertSuccess(us));
+            "try {\n" +
+            "    waitForBuild runId: dsRunId, propagate: true\n" +
+            "} finally {\n" +
+            "    echo \"'ds' completed with status ${ds.getResult()}\"\n" +
+            "}", true));
+        j.assertLogContains("'ds' completed with status UNSTABLE", j.buildAndAssertStatus(Result.UNSTABLE, us));
         WorkflowRun lastUpstreamRun = us.getLastBuild();
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstreamRun.getExecution(), WaitForBuildStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
