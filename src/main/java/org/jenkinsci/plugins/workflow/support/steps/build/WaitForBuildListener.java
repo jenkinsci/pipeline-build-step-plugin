@@ -26,6 +26,9 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
             LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, context});
 
             Result result = run.getResult();
+            if (result == null) { /* probably impossible */
+                result = Result.FAILURE;
+            }
             try {
                 context.get(TaskListener.class).getLogger().println("Build " + ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName()) + " completed: " + result.toString());
                 if (action.propagate && result.isWorseThan(Result.SUCCESS)) {
@@ -38,7 +41,7 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
             if (!action.propagate || result == Result.SUCCESS) {
                 context.onSuccess(new RunWrapper(run, false));
             } else {
-                context.onFailure(new FlowInterruptedException(result != null ? result : /* probably impossible */ Result.FAILURE, false, new DownstreamFailureCause(run)));
+                context.onFailure(new FlowInterruptedException(result, false, new DownstreamFailureCause(run)));
             }
         }
         run.removeActions(WaitForBuildAction.class);
