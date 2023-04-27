@@ -4,12 +4,12 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.40</version>
-        <relativePath />
+        <version>4.61</version>
+        <relativePath/>
     </parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>pipeline-build-step</artifactId>
-    <version>${revision}${changelist}</version>
+    <version>${changelist}</version>
     <packaging>hpi</packaging>
     <name>Pipeline: Build Step</name>
     <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
@@ -38,17 +38,16 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <revision>2.19</revision>
-        <changelist>-SNAPSHOT</changelist>
-        <jenkins.version>2.289.1</jenkins.version>
+        <changelist>999999-SNAPSHOT</changelist>
+        <jenkins.version>2.361.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.289.x</artifactId>
-                <version>1362.v59f2f3db_80ee</version>
+                <artifactId>bom-2.361.x</artifactId>
+                <version>2025.v816d28f1e04f</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

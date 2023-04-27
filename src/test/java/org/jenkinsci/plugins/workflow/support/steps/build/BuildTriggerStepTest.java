@@ -58,6 +58,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+
+import org.jenkinsci.plugins.workflow.actions.WarningAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.cps.SnippetizerTester;
@@ -84,6 +86,7 @@ import org.jvnet.hudson.test.MockQueueItemAuthenticator;
 import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
+import org.jvnet.hudson.test.UnstableBuilder;
 import org.jvnet.hudson.test.recipes.LocalData;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -91,6 +94,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assume.assumeThat;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class BuildTriggerStepTest {
 
@@ -123,6 +127,44 @@ public class BuildTriggerStepTest {
         j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0));
         us.setDefinition(new CpsFlowDefinition("echo \"ds.result=${build(job: 'ds', propagate: false).result}\"", true));
         j.assertLogContains("ds.result=FAILURE", j.buildAndAssertSuccess(us));
+    }
+
+    @Issue("JENKINS-70623")
+    @Test public void failingBuildWithWarningAction() throws Exception {
+        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
+        WorkflowRun lastUpstream = j.buildAndAssertStatus(Result.FAILURE, upstream);
+        j.assertLogContains("completed: FAILURE", lastUpstream);
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
+        WarningAction action = buildTriggerNode.getAction(WarningAction.class);
+        assertNotNull(action);
+        assertEquals(action.getResult(), Result.FAILURE);
+    }
+
+    @Issue("JENKINS-70623")
+    @Test public void unstableBuildWithWarningAction() throws Exception {
+        j.createFreeStyleProject("ds").getBuildersList().add(new UnstableBuilder());
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
+        WorkflowRun lastUpstream = j.buildAndAssertStatus(Result.UNSTABLE, upstream);
+        j.assertLogContains("completed: UNSTABLE", lastUpstream);
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
+        WarningAction action = buildTriggerNode.getAction(WarningAction.class);
+        assertNotNull(action);
+        assertEquals(action.getResult(), Result.UNSTABLE);
+    }
+
+    @Issue("JENKINS-70623")
+    @Test public void successBuildNoWarningAction() throws Exception {
+        j.createFreeStyleProject("ds");
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
+        WorkflowRun lastUpstream = j.buildAndAssertSuccess(upstream);
+        j.assertLogContains("completed: SUCCESS", lastUpstream);
+        FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
+        WarningAction action = buildTriggerNode.getAction(WarningAction.class);
+        assertNull(action);
     }
 
     @Issue("JENKINS-60995")
@@ -409,6 +451,13 @@ public class BuildTriggerStepTest {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
         j.buildAndAssertSuccess(us);
+    }
+
+    @Test public void waitForStart() throws Exception {
+        j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', waitForStart: true", true));
+        j.assertLogContains("Starting building:", j.buildAndAssertSuccess(us));
     }
 
     @Test public void rejectedStart() throws Exception {
