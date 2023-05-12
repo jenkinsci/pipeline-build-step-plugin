@@ -45,16 +45,16 @@ THE SOFTWARE.
         <div id="params"/>
         <script>
             function loadParams() {
-                var div = $$('params');
-                new Ajax.Request('${descriptor.descriptorUrl}/parameters?job=' + encodeURIComponent($$('${jobFieldId}').value) + '&amp;context=${descriptor.contextEncoded}', {
-                    method : 'get',
-                    onSuccess : function(x) {
-                        div.innerHTML = x.responseText;
-                        Behaviour.applySubtree(div);
-                    },
-                    onFailure : function(x) {
-                        div.innerHTML = "<b>ERROR</b>: Failed to load parameter definitions: " + x.statusText;
-                    }
+                var div = document.getElementById('params');
+                fetch('${descriptor.descriptorUrl}/parameters?job=' + encodeURIComponent(document.getElementById('${jobFieldId}').value) + '&amp;context=${descriptor.contextEncoded}').then((rsp) => {
+                    rsp.text().then((responseText) => {
+                        if (rsp.ok) {
+                            div.innerHTML = responseText;
+                            Behaviour.applySubtree(div);
+                        } else {
+                            div.innerHTML = "<b>ERROR</b>: Failed to load parameter definitions: " + rsp.statusText;
+                        }
+                    });
                 });
             }
         </script>
