@@ -62,7 +62,7 @@ public class WaitForBuildStepTest {
     }
 
     @SuppressWarnings("rawtypes")
-    @Test public void waitForBuildAlreadyComplete() throws Exception {
+    @Test public void waitForBuildAlreadyCompleteFailure() throws Exception {
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.getBuildersList().add(new FailureBuilder());
         Run ds1 = ds.scheduleBuild2(0).waitForStart();
@@ -70,7 +70,22 @@ public class WaitForBuildStepTest {
         j.waitForCompletion(ds1);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1'", true));
-        j.assertLogContains("is already complete", j.buildAndAssertSuccess(us));
+        Result expectedResult = Result.FAILURE;
+        j.assertLogContains("already completed: "+ expectedResult.toString(), j.buildAndAssertSuccess(us));
+    }
+
+    @Issue("JENKINS-71342")
+    @SuppressWarnings("rawtypes")
+    @Test public void waitForBuildPropagateAlreadyCompleteFailure() throws Exception {
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
+        ds.getBuildersList().add(new FailureBuilder());
+        Run ds1 = ds.scheduleBuild2(0).waitForStart();
+        assertEquals(1, ds1.getNumber());
+        j.waitForCompletion(ds1);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1', propagate: true", true));
+        Result expectedResult = Result.FAILURE;
+        j.assertLogContains("already completed: "+ expectedResult.toString(), j.buildAndAssertStatus(expectedResult, us));
     }
 
     @Issue("JENKINS-70983")
