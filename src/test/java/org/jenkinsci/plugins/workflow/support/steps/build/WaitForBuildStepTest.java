@@ -1,11 +1,8 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import hudson.model.Descriptor;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import hudson.model.Run;
-import hudson.tasks.Builder;
-import hudson.util.DescribableList;
 import org.jenkinsci.plugins.workflow.actions.WarningAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
@@ -22,8 +19,6 @@ import org.jvnet.hudson.test.FailureBuilder;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.SleepBuilder;
-import org.jvnet.hudson.test.UnstableBuilder;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -35,30 +30,26 @@ public class WaitForBuildStepTest {
     @Rule public LoggerRule logging = new LoggerRule();
 
     @Test public void waitForBuild() throws Exception {
-        FreeStyleProject ds = j.createFreeStyleProject("ds");
-        DescribableList<Builder, Descriptor<Builder>> buildersList = ds.getBuildersList();
-        buildersList.add(new SleepBuilder(500));
-        buildersList.add(new FailureBuilder());
+        Result dsResult = Result.FAILURE;
+        createWaitingDownStreamJob(dsResult);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
             "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
             "def completeDs = waitForBuild runId: dsRunId\n" +
             "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
-        j.assertLogContains("'ds' completed with status FAILURE", j.buildAndAssertSuccess(us));
+        j.assertLogContains("'ds' completed with status " + dsResult.toString(), j.buildAndAssertSuccess(us));
     }
 
     @Test public void waitForBuildPropagte() throws Exception {
-        FreeStyleProject ds = j.createFreeStyleProject("ds");
-        DescribableList<Builder, Descriptor<Builder>> buildersList = ds.getBuildersList();
-        buildersList.add(new SleepBuilder(500));
-        buildersList.add(new FailureBuilder());
+        Result dsResult = Result.FAILURE;
+        createWaitingDownStreamJob(dsResult);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
             "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
             "waitForBuild runId: dsRunId, propagate: true", true));
-        j.assertLogContains("completed with status FAILURE", j.buildAndAssertStatus(Result.FAILURE, us));
+        j.assertLogContains("completed with status " + dsResult.toString(), j.buildAndAssertStatus(dsResult, us));
     }
 
     @SuppressWarnings("rawtypes")
@@ -70,8 +61,8 @@ public class WaitForBuildStepTest {
         j.waitForCompletion(ds1);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1'", true));
-        Result expectedResult = Result.FAILURE;
-        j.assertLogContains("already completed: "+ expectedResult.toString(), j.buildAndAssertSuccess(us));
+        Result dsResult = Result.FAILURE;
+        j.assertLogContains("already completed: "+ dsResult.toString(), j.buildAndAssertSuccess(us));
     }
 
     @Issue("JENKINS-71342")
@@ -84,16 +75,14 @@ public class WaitForBuildStepTest {
         j.waitForCompletion(ds1);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1', propagate: true", true));
-        Result expectedResult = Result.FAILURE;
-        j.assertLogContains("already completed: "+ expectedResult.toString(), j.buildAndAssertStatus(expectedResult, us));
+        Result dsResult = Result.FAILURE;
+        j.assertLogContains("already completed: "+ dsResult.toString(), j.buildAndAssertStatus(dsResult, us));
     }
 
     @Issue("JENKINS-70983")
     @Test public void waitForUnstableBuildWithWarningAction() throws Exception {
-        FreeStyleProject ds = j.createFreeStyleProject("ds");
-        DescribableList<Builder, Descriptor<Builder>> buildersList = ds.getBuildersList();
-        buildersList.add(new SleepBuilder(500));
-        buildersList.add(new UnstableBuilder());
+        Result dsResult = Result.UNSTABLE;
+        createWaitingDownStreamJob(dsResult);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
@@ -103,7 +92,7 @@ public class WaitForBuildStepTest {
             "} finally {\n" +
             "    echo \"'ds' completed with status ${ds.getResult()}\"\n" +
             "}", true));
-        j.assertLogContains("'ds' completed with status UNSTABLE", j.buildAndAssertStatus(Result.UNSTABLE, us));
+        j.assertLogContains("'ds' completed with status " + dsResult.toString(), j.buildAndAssertStatus(dsResult, us));
         WorkflowRun lastUpstreamRun = us.getLastBuild();
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstreamRun.getExecution(), WaitForBuildStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
@@ -122,4 +111,23 @@ public class WaitForBuildStepTest {
         }
         return null;
     }
+
+    private WorkflowJob createWaitingDownStreamJob(Result result) throws Exception {
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDefinition(new CpsFlowDefinition(
+            "import org.jenkinsci.plugins.workflow.support.steps.build.WaitForBuildAction\n" +
+            "@NonCPS\n" + 
+            "boolean hasWaitForBuildAction() {\n" +
+            "    return currentBuild.getRawBuild().getAction(WaitForBuildAction.class) != null\n" +
+            "}\n" +
+            "while(!hasWaitForBuildAction()) {\n" +
+            "    sleep(time: 100, unit: 'MILLISECONDS')\n" +
+            "}\n" +
+            "catchError(buildResult: '" + result.toString() + "') {\n" +
+            "    error('')\n" +
+            "}", false));
+        return ds;
+        
+    }
+
 }
