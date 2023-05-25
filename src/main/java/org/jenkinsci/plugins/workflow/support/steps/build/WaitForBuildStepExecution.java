@@ -37,6 +37,9 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
             return false;
         } else {
             Result result = run.getResult();
+            if (result == null) {
+                result = Result.FAILURE;
+            }
             taskListener.getLogger().println(runHyperLink + " already completed: " + result.toString());
 
             StepContext context = getContext();
