@@ -38,7 +38,7 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
         } else {
             Result result = run.getResult();
             if (result == null) {
-                taskListener.getLogger().println("Warning: " + runHyperLink + " already completed but getResult() returned null.  Treating the result of this build as a failure));
+                taskListener.getLogger().println("Warning: " + runHyperLink + " already completed but getResult() returned null. Treating the result of this build as a failure");
                 result = Result.FAILURE;
             }
             else  {
