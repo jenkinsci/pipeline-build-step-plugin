@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.console.ModelHyperlinkNote;
@@ -44,7 +43,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     }
 
     @Override
-    public void onCompleted(Run<?,?> run, @NonNull TaskListener listener) {
+    public void onFinalized(Run<?,?> run) {
         for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
             if (!trigger.waitForStart) {
                 StepContext stepContext = trigger.context;
