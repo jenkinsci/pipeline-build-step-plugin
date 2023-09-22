@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import hudson.model.FreeStyleProject;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.model.queue.QueueTaskFuture;
+
 import org.jenkinsci.plugins.workflow.actions.WarningAction;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.nodes.StepAtomNode;
@@ -100,6 +102,70 @@ public class WaitForBuildStepTest {
         assertEquals(action.getResult(), Result.UNSTABLE);
     }
 
+    @Issue("JENKINS-71961")
+    @Test public void abortBuild() throws Exception {
+        WorkflowJob ds = createWaitingDownStreamJob(Result.SUCCESS, true);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition(
+            "def ds = build job: 'ds', waitForStart: true\n" +
+            "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
+            "def completeDs = waitForBuild runId: dsRunId, propagate: true\n" +
+            "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
+
+        QueueTaskFuture<WorkflowRun> q = us.scheduleBuild2(0);
+        WorkflowRun us1 = q.getStartCondition().get();
+
+        // wait for the downstream job to start and to be waited on by the upstream job
+        WorkflowRun ds1 = null;
+        while(true) {
+            ds1 = ds.getBuildByNumber(1);
+            if (ds1 != null) {
+                if (ds1.getAction(WaitForBuildAction.class) != null) {
+                    break;
+                }
+            }
+            Thread.sleep(10);
+        }
+
+        // Abort the downstream build
+        ds1.getExecutor().interrupt();
+
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds1));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(us1));
+    }
+
+    @Issue("JENKINS-71961")
+    @Test public void interruptFlow() throws Exception {
+        WorkflowJob ds = createWaitingDownStreamJob(Result.SUCCESS, true);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition(
+            "def ds = build job: 'ds', waitForStart: true\n" +
+            "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
+            "def completeDs = waitForBuild runId: dsRunId, propagate: true\n" +
+            "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
+
+        QueueTaskFuture<WorkflowRun> q = us.scheduleBuild2(0);
+        WorkflowRun us1 = q.getStartCondition().get();
+
+        // wait for the downstream job to start and to be waited on by the upstream job
+        WorkflowRun ds1 = null;
+        while(true) {
+            ds1 = ds.getBuildByNumber(1);
+            if (ds1 != null) {
+                if (ds1.getAction(WaitForBuildAction.class) != null) {
+                    break;
+                }
+            }
+            Thread.sleep(10);
+        }
+
+        // Abort the upstream build
+        us1.doStop();
+
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds1));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(us1));
+    }
+
     private static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class<WaitForBuildStep.DescriptorImpl> cls) {
         for (FlowNode node : new FlowGraphWalker(execution)) {
             if (node instanceof StepAtomNode) {
@@ -112,7 +178,7 @@ public class WaitForBuildStepTest {
         return null;
     }
 
-    private WorkflowJob createWaitingDownStreamJob(Result result) throws Exception {
+    private WorkflowJob createWaitingDownStreamJob(Result result, boolean indefiniteWait) throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition(
             "import org.jenkinsci.plugins.workflow.support.steps.build.WaitForBuildAction\n" +
@@ -123,11 +189,18 @@ public class WaitForBuildStepTest {
             "while(!hasWaitForBuildAction()) {\n" +
             "    sleep(time: 100, unit: 'MILLISECONDS')\n" +
             "}\n" +
+            "while(" + String.valueOf(indefiniteWait) + ") {\n" +
+            "    sleep(time: 100, unit: 'MILLISECONDS')\n" +
+            "}\n" +
             "catchError(buildResult: '" + result.toString() + "') {\n" +
             "    error('')\n" +
             "}", false));
         return ds;
         
+    }
+
+    private WorkflowJob createWaitingDownStreamJob(Result result) throws Exception {
+        return createWaitingDownStreamJob(result, false);
     }
 
 }
