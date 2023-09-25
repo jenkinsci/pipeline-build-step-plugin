@@ -20,7 +20,7 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
     private static final Logger LOGGER = Logger.getLogger(WaitForBuildListener.class.getName());
 
     @Override
-    public void onCompleted(Run<?,?> run, @NonNull TaskListener listener) {
+    public void onFinalized(Run<?,?> run) {
         for (WaitForBuildAction action : run.getActions(WaitForBuildAction.class)) {
             StepContext context = action.context;
             LOGGER.log(Level.FINE, "completing {0} for {1}", new Object[] {run, context});
