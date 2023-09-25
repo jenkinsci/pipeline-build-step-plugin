@@ -166,6 +166,46 @@ public class WaitForBuildStepTest {
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(us1));
     }
 
+    @Issue("JENKINS-71961")
+    @Test public void interruptFlowFromNotUpstream() throws Exception {
+        WorkflowJob ds = createWaitingDownStreamJob(Result.SUCCESS, true);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
+
+        j.buildAndAssertStatus(Result.SUCCESS, us);
+
+         // wait for the downstream job to start and to be waited on by the other job
+        WorkflowRun ds1 = null;
+        while(ds1 == null) {
+            ds1 = ds.getBuildByNumber(1);
+            Thread.sleep(10);
+        }
+
+        // schedule the other job that will wait on ds#1
+        WorkflowJob other = j.jenkins.createProject(WorkflowJob.class, "other");
+        other.setDefinition(new CpsFlowDefinition(
+            "def completeDs = waitForBuild runId: 'ds#1', propagate: true\n" +
+            "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
+
+        QueueTaskFuture<WorkflowRun> q = other.scheduleBuild2(0);
+        WorkflowRun other1 = q.getStartCondition().get();
+
+        // wait for ds#1 to be waited on by the other job
+        while(true) {
+            if (ds1.getAction(WaitForBuildAction.class) != null) {
+                break;
+            }
+            Thread.sleep(10);
+        }
+
+        // Abort the other build
+        other1.doStop();
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(other1));
+
+        // Assert the downstream is still in progress
+        j.assertBuildStatus(null, ds1);
+    }
+
     private static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class<WaitForBuildStep.DescriptorImpl> cls) {
         for (FlowNode node : new FlowGraphWalker(execution)) {
             if (node instanceof StepAtomNode) {

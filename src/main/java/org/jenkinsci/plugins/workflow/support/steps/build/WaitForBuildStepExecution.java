@@ -81,28 +81,34 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
         // so this method shouldn't call getContext().onFailure()
         for (Computer c : jenkins.getComputers()) {
             for (Executor e : c.getAllExecutors()) {
-                interrupted |= maybeInterrupt(e, cause, context);
+               interrupted |= maybeInterrupt(e, cause, context);
             }
         }
 
-        if (!interrupted) {
+        if(!interrupted) {
             super.stop(cause);
         }
     }
 
-    private static boolean maybeInterrupt(Executor e, Throwable cause, StepContext context) {
+    private static boolean maybeInterrupt(Executor e, Throwable cause, StepContext context) throws IOException, InterruptedException {
         boolean interrupted = false;
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
-            for(WaitForBuildAction waitForBuildAction : ((Run<?, ?>) exec).getActions(WaitForBuildAction.class)) {
+            Run<?, ?> downstream = (Run<?, ?>) exec;
+            for(WaitForBuildAction waitForBuildAction : downstream.getActions(WaitForBuildAction.class)) {
                 if (waitForBuildAction.context.equals(context)) {
-                    e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
-                    try {
-                        ((Run<?, ?>) exec).save();
-                    } catch (IOException x) {
-                        LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
+                    // Propagate the interrupt to the downstream run if it was triggered by the current run.
+                    for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(downstream)) {
+                        if (trigger.context.get(Run.class).equals(context.get(Run.class))) {
+                            e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
+                            try {
+                                ((Run<?, ?>) exec).save();
+                            } catch (IOException x) {
+                                LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
+                            }
+                            interrupted = true;
+                        }
                     }
-                    interrupted = true;
                 }
             }
         }
