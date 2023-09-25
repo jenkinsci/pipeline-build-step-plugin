@@ -1,12 +1,14 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.AbortException;
 import hudson.Extension;
 import hudson.console.ModelHyperlinkNote;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
+import jenkins.util.Timer;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.workflow.actions.WarningAction;
@@ -45,5 +47,12 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
             }
         }
         run.removeActions(WaitForBuildAction.class);
+    }
+
+    @Override
+    public void onDeleted(final Run<?,?> run) {
+        for (WaitForBuildAction action : run.getActions(WaitForBuildAction.class)) {
+            Timer.get().submit(() -> action.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted")));
+        }
     }
 }
