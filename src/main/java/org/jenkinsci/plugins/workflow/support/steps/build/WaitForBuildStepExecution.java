@@ -80,10 +80,7 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
         // when the build is actually aborted, WaitForBuildListener will take notice and report the failure,
         // so this method shouldn't call getContext().onFailure()
         for (Computer c : jenkins.getComputers()) {
-            for (Executor e : c.getExecutors()) {
-                interrupted |= maybeInterrupt(e, cause, context);
-            }
-            for (Executor e : c.getOneOffExecutors()) {
+            for (Executor e : c.getAllExecutors()) {
                 interrupted |= maybeInterrupt(e, cause, context);
             }
         }
