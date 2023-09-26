@@ -92,6 +92,7 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
 
     private static boolean maybeInterrupt(Executor e, Throwable cause, StepContext context) throws IOException, InterruptedException {
         boolean interrupted = false;
+        Run<?, ?> currentRun = context.get(Run.class);
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
             Run<?, ?> downstream = (Run<?, ?>) exec;
@@ -99,10 +100,11 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
                 if (waitForBuildAction.context.equals(context)) {
                     // Propagate the interrupt to the downstream run if it was triggered by the current run.
                     for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(downstream)) {
-                        if (trigger.context.get(Run.class).equals(context.get(Run.class))) {
+                        Run<?, ?> triggerRun = trigger.context.get(Run.class);
+                        if (currentRun != null && triggerRun != null && currentRun.getExternalizableId().equals(triggerRun.getExternalizableId())) {
                             e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
                             try {
-                                ((Run<?, ?>) exec).save();
+                                downstream.save();
                             } catch (IOException x) {
                                 LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
                             }
