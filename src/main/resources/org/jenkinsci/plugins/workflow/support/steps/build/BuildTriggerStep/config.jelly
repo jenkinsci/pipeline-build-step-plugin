@@ -43,8 +43,6 @@ THE SOFTWARE.
     </f:entry>
     <f:entry field="parameters" title="Parameters">
         <div id="params"/>
-        <script>
-            <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.config"/>
-        </script>
+        <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.configLoad"/>
     </f:entry>
 </j:jelly>
