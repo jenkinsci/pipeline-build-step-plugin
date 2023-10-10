@@ -27,7 +27,9 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
     <j:set var="jobFieldId" value="${h.generateId()}"/>
     <f:entry field="job" title="Project to Build">
-        <f:textbox onblur="loadParams()" id="${jobFieldId}"/>
+    <span class="textbox-params-reference-holder" data-id="${jobFieldId}"/>
+        <f:textbox id="${jobFieldId}"/>
+        <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.configLoad"/>
     </f:entry>
     <f:entry field="wait">
         <f:checkbox default="true" title="Wait for completion"/>
@@ -42,7 +44,6 @@ THE SOFTWARE.
         <f:number clazz="number"/>
     </f:entry>
     <f:entry field="parameters" title="Parameters">
-        <div id="params"/>
-        <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.configLoad"/>
+        <div id="params" data-jobfield = '${jobFieldId}' data-descriptor = '${descriptor.descriptorUrl}'/>
     </f:entry>
 </j:jelly>
