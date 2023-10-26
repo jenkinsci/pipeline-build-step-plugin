@@ -15,7 +15,7 @@ The Pipeline Syntax Snippet Generator helps the user generate steps for Jenkins 
 The recommended approach to pass secret values using the `build` step is to use credentials parameters:
 
 ```groovy
-build(job: 'foo', parameters: [credentials('parameter-name', 'credentials-id')])
+build(job: 'foo', parameters: [credentials(name: 'parameter-name', value: 'credentials-id')])
 ```
 
 See [the user guide for the Credentials Plugin](https://plugins.jenkins.io/credentials/) for a general overview of how credentials work in Jenkins and how they can be configured, and [the documentation for the Credentials Binding Plugin](https://plugins.jenkins.io/credentials-binding/) for an overview of how to access and use credentials from a Pipeline.
@@ -25,7 +25,7 @@ The plaintext secret may be persisted as part of the Pipeline's internal state, 
 Here is an example for reference:
 
 ```groovy
-build(job: 'foo', parameters: [password('parameter-name', 'secret-value')])
+build(job: 'foo', parameters: [password(name: 'parameter-name', value: 'secret-value')])
 ```
 
 ## Version History
