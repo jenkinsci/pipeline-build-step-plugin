@@ -141,7 +141,7 @@ public class WaitForBuildStepTest {
         us.setDefinition(new CpsFlowDefinition(
             "def ds = build job: 'ds', waitForStart: true\n" +
             "def dsRunId = \"${ds.getFullProjectName()}#${ds.getNumber()}\"\n" +
-            "def completeDs = waitForBuild runId: dsRunId, propagate: true\n" +
+            "def completeDs = waitForBuild runId: dsRunId, propagate: true, propagateAbort: true\n" +
             "echo \"'ds' completed with status ${completeDs.getResult()}\"", true));
 
         QueueTaskFuture<WorkflowRun> q = us.scheduleBuild2(0);

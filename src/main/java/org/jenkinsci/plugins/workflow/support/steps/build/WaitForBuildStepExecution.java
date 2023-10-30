@@ -76,12 +76,14 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
 
         boolean interrupted = false;
 
-        // if there's any in-progress build already, abort that.
-        // when the build is actually aborted, WaitForBuildListener will take notice and report the failure,
-        // so this method shouldn't call getContext().onFailure()
-        for (Computer c : jenkins.getComputers()) {
-            for (Executor e : c.getAllExecutors()) {
-               interrupted |= maybeInterrupt(e, cause, context);
+        if (step.isPropagateAbort()) {
+            // if there's any in-progress build already, abort that.
+            // when the build is actually aborted, WaitForBuildListener will take notice and report the failure,
+            // so this method shouldn't call getContext().onFailure()
+            for (Computer c : jenkins.getComputers()) {
+                for (Executor e : c.getAllExecutors()) {
+                interrupted |= maybeInterrupt(e, cause, context);
+                }
             }
         }
 
@@ -92,25 +94,18 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
 
     private static boolean maybeInterrupt(Executor e, Throwable cause, StepContext context) throws IOException, InterruptedException {
         boolean interrupted = false;
-        Run<?, ?> currentRun = context.get(Run.class);
         Queue.Executable exec = e.getCurrentExecutable();
         if (exec instanceof Run) {
             Run<?, ?> downstream = (Run<?, ?>) exec;
             for(WaitForBuildAction waitForBuildAction : downstream.getActions(WaitForBuildAction.class)) {
                 if (waitForBuildAction.context.equals(context)) {
-                    // Propagate the interrupt to the downstream run if it was triggered by the current run.
-                    for (BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(downstream)) {
-                        Run<?, ?> triggerRun = trigger.context.get(Run.class);
-                        if (currentRun != null && triggerRun != null && currentRun.getExternalizableId().equals(triggerRun.getExternalizableId())) {
-                            e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
-                            try {
-                                downstream.save();
-                            } catch (IOException x) {
-                                LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
-                            }
-                            interrupted = true;
-                        }
+                    e.interrupt(Result.ABORTED, new BuildTriggerCancelledCause(cause));
+                    try {
+                        downstream.save();
+                    } catch (IOException x) {
+                        LOGGER.log(Level.WARNING, "failed to save interrupt cause on " + exec, x);
                     }
+                    interrupted = true;
                 }
             }
         }
