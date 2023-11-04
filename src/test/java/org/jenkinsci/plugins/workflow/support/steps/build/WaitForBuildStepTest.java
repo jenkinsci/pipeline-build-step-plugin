@@ -51,6 +51,7 @@ public class WaitForBuildStepTest {
 
         // signal the downstream run to complete after it has been waited on
         WorkflowRun dsRun = ds.getBuildByNumber(1);
+        SemaphoreStep.waitForStart("wait/1", dsRun);
         waitForWaitForBuildAction(dsRun);
         SemaphoreStep.success("wait/1", true);
 
@@ -77,8 +78,8 @@ public class WaitForBuildStepTest {
         SemaphoreStep.waitForStart("scheduled/1", usRun);
         SemaphoreStep.success("scheduled/1", true);
 
-        // signal the downstream run to complete after it's been waited on
-        WorkflowRun dsRun = ds.getLastBuild();
+        // signal the downstream run to complete after it has been waited on
+        WorkflowRun dsRun = ds.getBuildByNumber(1);
         waitForWaitForBuildAction(dsRun);
         SemaphoreStep.success("wait/1", true);
 
@@ -137,8 +138,8 @@ public class WaitForBuildStepTest {
         SemaphoreStep.waitForStart("scheduled/1", usRun);
         SemaphoreStep.success("scheduled/1", true);
 
-        // signal the downstream run to complete after being waited on
-        WorkflowRun dsRun = ds.getLastBuild();
+        // signal the downstream run to complete after it has been waited on
+        WorkflowRun dsRun = ds.getBuildByNumber(1);
         waitForWaitForBuildAction(dsRun);
         SemaphoreStep.success("wait/1", true);
 
