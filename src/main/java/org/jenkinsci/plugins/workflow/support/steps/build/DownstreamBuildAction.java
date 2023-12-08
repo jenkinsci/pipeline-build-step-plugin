@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.model.InvisibleAction;
 import hudson.model.Item;
+import hudson.model.ItemGroup;
 import hudson.model.Run;
 import org.springframework.security.access.AccessDeniedException;
 
