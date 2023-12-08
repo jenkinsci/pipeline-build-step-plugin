@@ -24,6 +24,7 @@ public class WaitForBuildStep extends Step {
 
     private final String runId;
     private boolean propagate = false;
+    private boolean propagateAbort = false;
 
     @DataBoundConstructor
     public WaitForBuildStep(String runId) {
@@ -40,6 +41,14 @@ public class WaitForBuildStep extends Step {
 
     @DataBoundSetter public void setPropagate(boolean propagate) {
         this.propagate = propagate;
+    }
+
+    public boolean isPropagateAbort() {
+        return propagateAbort;
+    }
+
+    @DataBoundSetter public void setPropagateAbort(boolean propagateAbort) {
+        this.propagateAbort = propagateAbort;
     }
 
     @Override
