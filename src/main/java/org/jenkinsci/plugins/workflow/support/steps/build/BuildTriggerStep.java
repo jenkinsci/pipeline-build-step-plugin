@@ -3,6 +3,8 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
+import hudson.Functions;
+import hudson.Util;
 import hudson.model.AutoCompletionCandidates;
 import hudson.model.Describable;
 import hudson.model.Item;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
@@ -54,6 +57,7 @@ public class BuildTriggerStep extends Step {
     private final String job;
     private List<ParameterValue> parameters;
     private boolean wait = true;
+    private boolean waitForStart = false;
     private boolean propagate = true;
     private Integer quietPeriod;
 
@@ -80,6 +84,14 @@ public class BuildTriggerStep extends Step {
 
     @DataBoundSetter public void setWait(boolean wait) {
         this.wait = wait;
+    }
+
+    public boolean getWaitForStart() {
+        return waitForStart;
+    }
+
+    @DataBoundSetter public void setWaitForStart(boolean waitForStart) {
+        this.waitForStart = waitForStart;
     }
 
     public Integer getQuietPeriod() {
@@ -287,6 +299,13 @@ public class BuildTriggerStep extends Step {
         public String getContext() {
             Job<?,?> job = StaplerReferer.findItemFromRequest(Job.class);
             return job != null ? job.getFullName() : null;
+        }
+
+        @Restricted(DoNotUse.class) // for use from config.jelly
+        public String getContextEncoded() {
+            final String context = getContext();
+            //Functions.jsStringEscape() is also an alternative though the one below escapes more stuff
+            return context != null ? StringEscapeUtils.escapeJavaScript(context) : null;
         }
 
         public FormValidation doCheckPropagate(@QueryParameter boolean value, @QueryParameter boolean wait) {

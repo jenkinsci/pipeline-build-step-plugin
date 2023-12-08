@@ -71,7 +71,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             throw new AbortException("No item named " + job + " found");
         }
         item.checkPermission(Item.BUILD);
-        if (step.getWait() && !(item instanceof Job)) {
+        if ((step.getWait() || step.getWaitForStart()) && !(item instanceof Job)) {
             // TODO find some way of allowing ComputedFolders to hook into the listener code
             throw new AbortException("Waiting for non-job items is not supported");
         }
@@ -86,9 +86,9 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
 
             getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
 
-            if (step.getWait()) {
+            if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
-                actions.add(new BuildTriggerAction(context, step.isPropagate()));
+                actions.add(new BuildTriggerAction(context, step.isPropagate(), step.getWaitForStart()));
                 LOGGER.log(Level.FINER, "scheduling a build of {0} from {1}", new Object[]{project, context});
             }
 
@@ -111,9 +111,9 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             Queue.Task task = (Queue.Task) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
             getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
-            if (step.getWait()) {
+            if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
-                actions.add(new BuildTriggerAction(context, step.isPropagate()));
+                actions.add(new BuildTriggerAction(context, step.isPropagate(), step.getWaitForStart()));
                 LOGGER.log(Level.FINER, "scheduling a build of {0} from {1}", new Object[]{task, context});
             }
 
@@ -144,7 +144,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
                     : item.getClass().getName())
                     + " which is not something that can be built");
         }
-        if (step.getWait()) {
+        if (step.getWait() || step.getWaitForStart()) {
             return false;
         } else {
             getContext().onSuccess(null);

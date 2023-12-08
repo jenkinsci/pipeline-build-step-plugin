@@ -27,10 +27,15 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
     <j:set var="jobFieldId" value="${h.generateId()}"/>
     <f:entry field="job" title="Project to Build">
-        <f:textbox onblur="loadParams()" id="${jobFieldId}"/>
+    <span class="textbox-params-reference-holder" data-id="${jobFieldId}"/>
+        <f:textbox id="${jobFieldId}"/>
+        <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.configLoad"/>
     </f:entry>
     <f:entry field="wait">
         <f:checkbox default="true" title="Wait for completion"/>
+    </f:entry>
+    <f:entry field="waitForStart">
+        <f:checkbox default="false" title="Wait until the build starts"/>
     </f:entry>
     <f:entry field="propagate">
         <f:checkbox default="true" title="Propagate errors"/>
@@ -39,21 +44,6 @@ THE SOFTWARE.
         <f:number clazz="number"/>
     </f:entry>
     <f:entry field="parameters" title="Parameters">
-        <div id="params"/>
-        <script>
-            function loadParams() {
-                var div = $$('params');
-                new Ajax.Request('${descriptor.descriptorUrl}/parameters?job=' + encodeURIComponent($$('${jobFieldId}').value) + '&amp;context=' + encodeURIComponent('${descriptor.context}'), {
-                    method : 'get',
-                    onSuccess : function(x) {
-                        div.innerHTML = x.responseText;
-                        Behaviour.applySubtree(div);
-                    },
-                    onFailure : function(x) {
-                        div.innerHTML = "<b>ERROR</b>: Failed to load parameter definitions: " + x.statusText;
-                    }
-                });
-            }
-        </script>
+        <div id="params" data-jobfield = '${jobFieldId}' data-descriptor = '${descriptor.descriptorUrl}'/>
     </f:entry>
 </j:jelly>
