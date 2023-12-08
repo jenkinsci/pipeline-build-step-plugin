@@ -27,7 +27,7 @@ public final class DownstreamBuildAction extends InvisibleAction implements Pers
     }
 
     /**
-     * Get the build number of the downstream build, or {@code null} if the downstream build has not yet started.
+     * Get the build number of the downstream build, or {@code null} if the downstream build has not yet started or the queue item was cancelled.
      */
     public @CheckForNull Integer getBuildNumber() {
         return buildNumber;
