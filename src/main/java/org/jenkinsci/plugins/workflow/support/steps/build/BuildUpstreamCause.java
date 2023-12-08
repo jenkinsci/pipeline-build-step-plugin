@@ -5,6 +5,11 @@ import hudson.model.Run;
 import java.util.Objects;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 
+/**
+ * Points back to the triggering {@link FlowNode}.
+ *
+ * @see DownstreamBuildAction
+ */
 public class BuildUpstreamCause extends Cause.UpstreamCause {
     private final String nodeId;
 

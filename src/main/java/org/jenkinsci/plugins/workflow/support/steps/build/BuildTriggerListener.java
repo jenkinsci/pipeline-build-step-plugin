@@ -3,14 +3,18 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import hudson.AbortException;
 import hudson.Extension;
 import hudson.console.ModelHyperlinkNote;
+import hudson.model.Cause;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.model.listeners.RunListener;
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.WarningAction;
+import org.jenkinsci.plugins.workflow.flow.FlowExecution;
+import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -40,6 +44,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                 LOGGER.log(Level.FINE, "{0} unavailable in {1}", new Object[] {stepContext, run});
             }
         }
+        Timer.get().submit(() -> updateDownstreamBuildAction(run));
     }
 
     @Override
@@ -80,6 +85,40 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     public void onDeleted(final Run<?,?> run) {
         for (final BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
             Timer.get().submit(() -> trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted")));
+        }
+    }
+
+    private void updateDownstreamBuildAction(Run<?, ?> run) {
+        for (Cause cause : run.getCauses()) {
+            if (cause instanceof BuildUpstreamCause) {
+                BuildUpstreamCause buildUpstreamCause = (BuildUpstreamCause) cause;
+                Run<?, ?> upstream = buildUpstreamCause.getUpstreamRun();
+                if (upstream instanceof FlowExecutionOwner.Executable) {
+                    FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) upstream).asFlowExecutionOwner();
+                    if (owner == null) {
+                        LOGGER.log(Level.FINE, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
+                        continue;
+                    }
+                    try {
+                        FlowExecution execution = owner.get();
+                        FlowNode node = execution.getNode(buildUpstreamCause.getNodeId());
+                        if (node == null) {
+                            LOGGER.log(Level.FINE, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
+                            continue;
+                        }
+                        DownstreamBuildAction downstreamAction = node.getPersistentAction(DownstreamBuildAction.class);
+                        if (downstreamAction == null) {
+                            // Should only happen for builds already in the queue when this plugin is updated to include DownstreamBuildAction.
+                            downstreamAction = new DownstreamBuildAction(run.getParent());
+                            node.addAction(downstreamAction);
+                        }
+                        downstreamAction.setBuild(run);
+                        run.save();
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, e, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
+                    }
+                }
+            }
         }
     }
 }

@@ -9,12 +9,10 @@ import java.util.Objects;
 /**
  * Attached to newly-created builds in order to point back to the triggering FlowNode.
  *
- * We annotate the downstream build instead of upstream in order to support no-wait builds,
- * because the downstream run id is not available when they're still queued.
- *
- * Needed for Blue Ocean to annotate the correct step.
- * See <a href="https://issues.jenkins-ci.org/browse/JENKINS-38339">#JENKINS-38339</a>
+ * @see DownstreamBuildAction
+ * @deprecated Use {@link BuildUpstreamCause} instead
  */
+@Deprecated
 public class BuildUpstreamNodeAction extends InvisibleAction {
 
     private final String upstreamNodeId;

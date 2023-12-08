@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -88,6 +89,7 @@ import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.UnstableBuilder;
 import org.jvnet.hudson.test.recipes.LocalData;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -239,6 +241,27 @@ public class BuildTriggerStepTest {
         BuildUpstreamNodeAction action = actions.get(0);
         assertEquals("correct upstreamRunId", action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId());
         assertEquals("valid upstreamNodeId", buildTriggerNode, execution.getNode(action.getUpstreamNodeId()));
+    }
+
+    @Test public void downstreamBuildAction() throws Exception {
+        FreeStyleProject downstream = j.createFreeStyleProject("downstream");
+        downstream.setAssignedLabel(Label.parseExpression("agent"));
+        WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+        upstream.setDefinition(new CpsFlowDefinition("build(job: 'downstream', wait: false)", true));
+        WorkflowRun upstreamRun = j.buildAndAssertSuccess(upstream);
+        // Check action while the build is still in the queue.
+        String buildStepId = findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class).getId();
+        DownstreamBuildAction action = upstreamRun.getExecution().getNode(buildStepId).getAction(DownstreamBuildAction.class);
+        assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
+        assertThat(action.getBuildNumber(), nullValue());
+        assertThat(action.getBuild(), nullValue());
+        // Check again once the build has started.
+        j.createOnlineSlave(Label.parseExpression("agent"));
+        Run<?, ?> downstreamRun = await().atMost(5, TimeUnit.SECONDS).until(downstream::getLastBuild, notNullValue());
+        assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
+        await().atMost(5, TimeUnit.SECONDS).until(action::getBuildNumber, equalTo(downstreamRun.getNumber()));
+        assertThat(action.getBuild(), equalTo(downstreamRun));
+        j.waitForCompletion(downstreamRun);
     }
 
     @SuppressWarnings("deprecation")

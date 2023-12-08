@@ -75,16 +75,18 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             // TODO find some way of allowing ComputedFolders to hook into the listener code
             throw new AbortException("Waiting for non-job items is not supported");
         }
+        FlowNode node = getContext().get(FlowNode.class);
+        node.addAction(new DownstreamBuildAction(item));
 
         List<Action> actions = new ArrayList<>();
         actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), getContext().get(Run.class))));
-        actions.add(new BuildUpstreamNodeAction(getContext().get(FlowNode.class), getContext().get(Run.class)));
+        actions.add(new BuildUpstreamNodeAction(node, getContext().get(Run.class)));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
-            getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
+            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
 
             if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
@@ -110,7 +112,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             }
             Queue.Task task = (Queue.Task) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
-            getContext().get(FlowNode.class).addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
+            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
             if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
                 actions.add(new BuildTriggerAction(context, step.isPropagate(), step.getWaitForStart()));
