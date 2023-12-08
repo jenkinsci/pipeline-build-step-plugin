@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.model.InvisibleAction;
 import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -9,11 +10,7 @@ import java.util.Objects;
 /**
  * Attached to newly-created builds in order to point back to the triggering FlowNode.
  *
- * We annotate the downstream build instead of upstream in order to support no-wait builds,
- * because the downstream run id is not available when they're still queued.
- *
- * Needed for Blue Ocean to annotate the correct step.
- * See <a href="https://issues.jenkins-ci.org/browse/JENKINS-38339">#JENKINS-38339</a>
+ * @see DownstreamBuildAction
  */
 public class BuildUpstreamNodeAction extends InvisibleAction {
 
