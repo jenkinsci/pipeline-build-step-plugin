@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.workflow.support.steps.build;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.model.InvisibleAction;
 import hudson.model.Run;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
@@ -11,7 +10,9 @@ import java.util.Objects;
  * Attached to newly-created builds in order to point back to the triggering FlowNode.
  *
  * @see DownstreamBuildAction
+ * @deprecated Use {@link BuildUpstreamCause} instead
  */
+@Deprecated
 public class BuildUpstreamNodeAction extends InvisibleAction {
 
     private final String upstreamNodeId;

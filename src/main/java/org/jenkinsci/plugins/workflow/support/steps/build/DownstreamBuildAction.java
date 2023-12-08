@@ -6,22 +6,19 @@ import hudson.model.InvisibleAction;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Run;
+import org.jenkinsci.plugins.workflow.actions.PersistentAction;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
  * Tracks the downstream build triggered by the {@code build} step.
- * <p>Note that {@link #getBuildNumber} may return null if the build is in the queue or gets cancelled from the queue.
- * <p>Keep in mind that {@link #getBuild} may need to load the build, and so should be used carefully.
  *
  * @see BuildUpstreamCause
- * @see BuildUpstreamNodeAction
  */
-public class DownstreamBuildAction extends InvisibleAction {
+public final class DownstreamBuildAction extends InvisibleAction implements PersistentAction {
     private final String jobFullName;
     private Integer buildNumber;
-    private String buildId;
 
-    public DownstreamBuildAction(Item job) {
+    DownstreamBuildAction(Item job) {
         this.jobFullName = job.getFullName();
     }
 
@@ -29,6 +26,9 @@ public class DownstreamBuildAction extends InvisibleAction {
         return jobFullName;
     }
 
+    /**
+     * Get the build number of the downstream build, or {@code null} if the downstream build has not yet started.
+     */
     public @CheckForNull Integer getBuildNumber() {
         return buildNumber;
     }
@@ -39,15 +39,14 @@ public class DownstreamBuildAction extends InvisibleAction {
      * to know whether the build started at one point, use {@link #getBuildNumber}.
      * @throws AccessDeniedException as per {@link ItemGroup#getItem}
      */
-    public @CheckForNull Run<?, ?> getBuild() {
-        if (buildId == null) {
+    public @CheckForNull Run<?, ?> getBuild() throws AccessDeniedException {
+        if (buildNumber == null) {
             return null;
         }
-        return Run.fromExternalizableId(buildId);
+        return Run.fromExternalizableId(jobFullName + '#' + buildNumber);
     }
 
     void setBuild(Run<?, ?> build) {
         this.buildNumber = build.getNumber();
-        this.buildId = build.getExternalizableId();
     }
 }
