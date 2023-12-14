@@ -66,7 +66,8 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     @Override
     public boolean start() throws Exception {
         String job = step.getJob();
-        Item item = Jenkins.get().getItem(job, getContext().get(Run.class).getParent(), Item.class);
+        Run<?, ?> upstream = getContext().get(Run.class);
+        Item item = Jenkins.get().getItem(job, upstream.getParent(), Item.class);
         if (item == null) {
             throw new AbortException("No item named " + job + " found");
         }
@@ -75,12 +76,13 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             // TODO find some way of allowing ComputedFolders to hook into the listener code
             throw new AbortException("Waiting for non-job items is not supported");
         }
+
         FlowNode node = getContext().get(FlowNode.class);
-        node.addAction(new DownstreamBuildAction(item));
+        DownstreamBuildAction.getOrCreate(upstream, node.getId(), item);
 
         List<Action> actions = new ArrayList<>();
-        actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), getContext().get(Run.class))));
-        actions.add(new BuildUpstreamNodeAction(node, getContext().get(Run.class)));
+        actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), upstream)));
+        actions.add(new BuildUpstreamNodeAction(node, upstream));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
