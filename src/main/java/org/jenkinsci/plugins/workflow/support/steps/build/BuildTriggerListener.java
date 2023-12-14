@@ -13,7 +13,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.util.Timer;
 import org.jenkinsci.plugins.workflow.actions.WarningAction;
-import org.jenkinsci.plugins.workflow.flow.FlowExecution;
 import org.jenkinsci.plugins.workflow.flow.FlowExecutionOwner;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
@@ -94,26 +93,29 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                 BuildUpstreamCause buildUpstreamCause = (BuildUpstreamCause) cause;
                 Run<?, ?> upstream = buildUpstreamCause.getUpstreamRun();
                 if (upstream instanceof FlowExecutionOwner.Executable) {
-                    FlowExecutionOwner owner = ((FlowExecutionOwner.Executable) upstream).asFlowExecutionOwner();
-                    if (owner == null) {
-                        LOGGER.log(Level.FINE, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
-                        continue;
+                    DownstreamBuildAction action = findMatchingAction(upstream, buildUpstreamCause.getNodeId());
+                    if (action == null) {
+                        action = new DownstreamBuildAction(buildUpstreamCause.getNodeId(), run.getParent());
+                        run.addAction(action);
                     }
+                    action.setBuild(run);
                     try {
-                        FlowExecution execution = owner.get();
-                        FlowNode node = execution.getNode(buildUpstreamCause.getNodeId());
-                        if (node == null) {
-                            LOGGER.log(Level.FINE, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
-                            continue;
-                        }
-                        DownstreamBuildAction action = new DownstreamBuildAction(run);
-                        node.addOrReplaceAction(action);
-                        run.save();
+                        upstream.save();
+                        LOGGER.log(Level.WARNING, () -> "Saved DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, e, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
                     }
                 }
             }
         }
+    }
+
+    private DownstreamBuildAction findMatchingAction(Run<?, ?> run, String flowNodeId) {
+        for (DownstreamBuildAction action : run.getActions(DownstreamBuildAction.class)) {
+            if (action.getFlowNodeId().equals(flowNodeId)) {
+                return action;
+            }
+        }
+        return null;
     }
 }

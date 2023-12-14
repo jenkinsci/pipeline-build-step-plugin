@@ -6,26 +6,26 @@ import hudson.model.InvisibleAction;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Run;
-import org.jenkinsci.plugins.workflow.actions.PersistentAction;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
- * Tracks the downstream build triggered by the {@code build} step.
+ * Tracks a downstream build triggered by the {@code build} step, as well as the {@link FlowNode#getId} of the step.
  *
  * @see BuildUpstreamCause
  */
-public final class DownstreamBuildAction extends InvisibleAction implements PersistentAction {
+public final class DownstreamBuildAction extends InvisibleAction {
+    private final String flowNodeId;
     private final String jobFullName;
-    private final Integer buildNumber;
+    private Integer buildNumber;
 
-    DownstreamBuildAction(Item job) {
+    DownstreamBuildAction(@NonNull String flowNodeId, @NonNull Item job) {
+        this.flowNodeId = flowNodeId;
         this.jobFullName = job.getFullName();
-        this.buildNumber = null;
     }
 
-    DownstreamBuildAction(Run<?, ?> run) {
-        this.jobFullName = run.getParent().getFullName();
-        this.buildNumber = run.getNumber();
+    public @NonNull String getFlowNodeId() {
+        return flowNodeId;
     }
 
     public @NonNull String getJobFullName() {
@@ -50,5 +50,9 @@ public final class DownstreamBuildAction extends InvisibleAction implements Pers
             return null;
         }
         return Run.fromExternalizableId(jobFullName + '#' + buildNumber);
+    }
+
+    void setBuild(@NonNull Run<?, ?> run) {
+        this.buildNumber = run.getNumber();
     }
 }

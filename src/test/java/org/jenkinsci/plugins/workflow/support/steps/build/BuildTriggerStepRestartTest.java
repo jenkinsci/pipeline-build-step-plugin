@@ -7,12 +7,16 @@ import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
-import org.jenkinsci.plugins.workflow.graph.FlowNode;
+import org.jenkinsci.plugins.workflow.flow.FlowDurabilityHint;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,25 +79,26 @@ public class BuildTriggerStepRestartTest {
     }
 
     @Test
-    public void downstreamBuildAction() throws Throwable {
+    public void downstreamBuildActionUpstreamCompletesBeforeDownstreamStarts() throws Throwable {
         sessions.then(j -> {
             FreeStyleProject downstream = j.createFreeStyleProject("downstream");
             downstream.setAssignedLabel(Label.parseExpression("agent"));
             WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+            upstream.addProperty(new DurabilityHintJobProperty(FlowDurabilityHint.PERFORMANCE_OPTIMIZED)); // TODO: Unnecessary once we pick up https://github.com/jenkinsci/workflow-cps-plugin/pull/807.
             upstream.setDefinition(new CpsFlowDefinition("build(job: 'downstream', wait: false)", true));
             WorkflowRun upstreamRun = j.buildAndAssertSuccess(upstream);
             // Check action while the build is still in the queue.
             String buildStepId = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class).getId();
-            FlowNode node = upstreamRun.getExecution().getNode(buildStepId);
-            DownstreamBuildAction action = node.getAction(DownstreamBuildAction.class);
+            DownstreamBuildAction action = upstreamRun.getAction(DownstreamBuildAction.class);
+            assertThat(action.getFlowNodeId(), equalTo(buildStepId));
             assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(action.getBuildNumber(), nullValue());
             assertThat(action.getBuild(), nullValue());
             // Check again once the build has started.
             j.createOnlineSlave(Label.parseExpression("agent"));
-            await().atMost(10, TimeUnit.SECONDS).until(() -> node.getAction(DownstreamBuildAction.class).getBuildNumber(), notNullValue());
+            await().atMost(10, TimeUnit.SECONDS).until(() -> action.getBuildNumber(), notNullValue());
             Run<?, ?> downstreamRun = downstream.getLastBuild();
-            action = node.getAction(DownstreamBuildAction.class);
+            assertThat(action.getFlowNodeId(), equalTo(buildStepId));
             assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(action.getBuildNumber(), equalTo(downstreamRun.getNumber()));
             assertThat(action.getBuild(), equalTo(downstreamRun));
@@ -104,10 +109,47 @@ public class BuildTriggerStepRestartTest {
             WorkflowJob upstream = j.jenkins.getItemByFullName("upstream", WorkflowJob.class);
             WorkflowRun upstreamRun = upstream.getLastBuild();
             String buildStepId = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class).getId();
-            DownstreamBuildAction action = upstreamRun.getExecution().getNode(buildStepId).getAction(DownstreamBuildAction.class);
+            DownstreamBuildAction action = upstreamRun.getAction(DownstreamBuildAction.class);
+            assertThat(action.getFlowNodeId(), equalTo(buildStepId));
             assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(action.getBuildNumber(), equalTo(downstream.getLastBuild().getNumber()));
             assertThat(action.getBuild(), equalTo(downstream.getLastBuild()));
+        });
+    }
+
+    @Test
+    public void downstreamBuildActionMultipleBuilds() throws Throwable {
+        sessions.then(j -> {
+            FreeStyleProject downstream = j.createFreeStyleProject("downstream");
+            WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
+            upstream.setDefinition(new CpsFlowDefinition("build(job: 'downstream'); build(job: 'downstream')", true));
+            WorkflowRun upstreamRun = j.buildAndAssertSuccess(upstream);
+            Map<String, DownstreamBuildAction> actions = upstreamRun.getActions(DownstreamBuildAction.class).stream()
+                    .collect(Collectors.toMap(a -> a.getFlowNodeId(), a -> a));
+            await().atMost(10, TimeUnit.SECONDS).until(() -> actions.values().stream().map(DownstreamBuildAction::getBuildNumber).filter(Objects::nonNull).count(), equalTo(2L));
+            for (Run<?, ?> downstreamRun : downstream.getBuilds()) {
+                String nodeId = downstreamRun.getCause(BuildUpstreamCause.class).getNodeId();
+                DownstreamBuildAction action = actions.get(downstreamRun.getCause(BuildUpstreamCause.class).getNodeId());
+                assertThat(action.getFlowNodeId(), equalTo(nodeId));
+                assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
+                assertThat(action.getBuildNumber(), equalTo(downstreamRun.getNumber()));
+                assertThat(action.getBuild(), equalTo(downstreamRun));
+            }
+        });
+        sessions.then(j -> {
+            FreeStyleProject downstream = j.jenkins.getItemByFullName("downstream", FreeStyleProject.class);
+            WorkflowJob upstream = j.jenkins.getItemByFullName("upstream", WorkflowJob.class);
+            WorkflowRun upstreamRun = upstream.getLastBuild();
+            Map<String, DownstreamBuildAction> actions = upstreamRun.getActions(DownstreamBuildAction.class).stream()
+                    .collect(Collectors.toMap(a -> a.getFlowNodeId(), a -> a));
+            for (Run<?, ?> downstreamRun : downstream.getBuilds()) {
+                String nodeId = downstreamRun.getCause(BuildUpstreamCause.class).getNodeId();
+                DownstreamBuildAction action = actions.get(downstreamRun.getCause(BuildUpstreamCause.class).getNodeId());
+                assertThat(action.getFlowNodeId(), equalTo(nodeId));
+                assertThat(action.getJobFullName(), equalTo(downstream.getFullName()));
+                assertThat(action.getBuildNumber(), equalTo(downstreamRun.getNumber()));
+                assertThat(action.getBuild(), equalTo(downstreamRun));
+            }
         });
     }
 
