@@ -6,9 +6,9 @@ import hudson.model.InvisibleAction;
 import hudson.model.Item;
 import hudson.model.ItemGroup;
 import hudson.model.Run;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -18,7 +18,7 @@ import org.springframework.security.access.AccessDeniedException;
  * @see BuildUpstreamCause
  */
 public final class DownstreamBuildAction extends InvisibleAction {
-    private final Map<String, DownstreamBuild> downstreamBuilds = new LinkedHashMap<>();
+    private final List<DownstreamBuild> downstreamBuilds = new ArrayList<>();
 
     public static @NonNull DownstreamBuild getOrCreate(@NonNull Run<?, ?> run, @NonNull String flowNodeId, @NonNull Item job) {
         DownstreamBuildAction downstreamBuildAction;
@@ -32,26 +32,33 @@ public final class DownstreamBuildAction extends InvisibleAction {
         return downstreamBuildAction.getOrAddDownstreamBuild(flowNodeId, job);
     }
 
-    public synchronized @CheckForNull DownstreamBuild getDownstreamBuild(@NonNull String flowNodeId) {
-        return downstreamBuilds.get(flowNodeId);
-    }
-
-    public synchronized @NonNull Map<String, DownstreamBuild> getDownstreamBuilds() {
-        return Collections.unmodifiableMap(new LinkedHashMap<>(downstreamBuilds));
+    public synchronized @NonNull List<DownstreamBuild> getDownstreamBuilds() {
+        return Collections.unmodifiableList(new ArrayList<>(downstreamBuilds));
     }
 
     private synchronized @NonNull DownstreamBuild getOrAddDownstreamBuild(@NonNull String flowNodeId, @NonNull Item job) {
-        var downstreamBuild = new DownstreamBuild(job);
-        var existing = downstreamBuilds.putIfAbsent(flowNodeId, downstreamBuild);
-        return existing == null ? downstreamBuild : existing;
+        for (DownstreamBuild build : downstreamBuilds) {
+            if (build.getFlowNodeId().equals(flowNodeId)) {
+                return build;
+            }
+        }
+        var build = new DownstreamBuild(flowNodeId, job);
+        downstreamBuilds.add(build);
+        return build;
     }
 
     public static final class DownstreamBuild {
+        private final String flowNodeId;
         private final String jobFullName;
         private Integer buildNumber;
 
-        DownstreamBuild(@NonNull Item job) {
+        DownstreamBuild(String flowNodeId, @NonNull Item job) {
+            this.flowNodeId = flowNodeId;
             this.jobFullName = job.getFullName();
+        }
+
+        public @NonNull String getFlowNodeId() {
+            return flowNodeId;
         }
 
         public @NonNull String getJobFullName() {
