@@ -16,10 +16,16 @@ import org.springframework.security.access.AccessDeniedException;
  */
 public final class DownstreamBuildAction extends InvisibleAction implements PersistentAction {
     private final String jobFullName;
-    private Integer buildNumber;
+    private final Integer buildNumber;
 
     DownstreamBuildAction(Item job) {
         this.jobFullName = job.getFullName();
+        this.buildNumber = null;
+    }
+
+    DownstreamBuildAction(Run<?, ?> run) {
+        this.jobFullName = run.getParent().getFullName();
+        this.buildNumber = run.getNumber();
     }
 
     public @NonNull String getJobFullName() {
@@ -44,9 +50,5 @@ public final class DownstreamBuildAction extends InvisibleAction implements Pers
             return null;
         }
         return Run.fromExternalizableId(jobFullName + '#' + buildNumber);
-    }
-
-    void setBuild(Run<?, ?> build) {
-        this.buildNumber = build.getNumber();
     }
 }

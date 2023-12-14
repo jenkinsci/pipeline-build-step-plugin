@@ -106,13 +106,8 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                             LOGGER.log(Level.FINE, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
                             continue;
                         }
-                        DownstreamBuildAction downstreamAction = node.getPersistentAction(DownstreamBuildAction.class);
-                        if (downstreamAction == null) {
-                            // Should only happen for builds already in the queue when this plugin is updated to include DownstreamBuildAction.
-                            downstreamAction = new DownstreamBuildAction(run.getParent());
-                            node.addAction(downstreamAction);
-                        }
-                        downstreamAction.setBuild(run);
+                        DownstreamBuildAction action = new DownstreamBuildAction(run);
+                        node.addOrReplaceAction(action);
                         run.save();
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, e, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
