@@ -87,35 +87,21 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
         }
     }
 
-    private void updateDownstreamBuildAction(Run<?, ?> run) {
-        for (Cause cause : run.getCauses()) {
+    private void updateDownstreamBuildAction(Run<?, ?> downstream) {
+        for (Cause cause : downstream.getCauses()) {
             if (cause instanceof BuildUpstreamCause) {
                 BuildUpstreamCause buildUpstreamCause = (BuildUpstreamCause) cause;
                 Run<?, ?> upstream = buildUpstreamCause.getUpstreamRun();
                 if (upstream instanceof FlowExecutionOwner.Executable) {
-                    DownstreamBuildAction action = findMatchingAction(upstream, buildUpstreamCause.getNodeId());
-                    if (action == null) {
-                        action = new DownstreamBuildAction(buildUpstreamCause.getNodeId(), run.getParent());
-                        run.addAction(action);
-                    }
-                    action.setBuild(run);
+                    String flowNodeId = buildUpstreamCause.getNodeId();
+                    DownstreamBuildAction.getOrCreate(upstream, flowNodeId, downstream.getParent()).setBuild(downstream);
                     try {
                         upstream.save();
-                        LOGGER.log(Level.WARNING, () -> "Saved DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, e, () -> "Unable to update DownstreamBuildAction for " + upstream + " node " + buildUpstreamCause.getNodeId());
                     }
                 }
             }
         }
-    }
-
-    private DownstreamBuildAction findMatchingAction(Run<?, ?> run, String flowNodeId) {
-        for (DownstreamBuildAction action : run.getActions(DownstreamBuildAction.class)) {
-            if (action.getFlowNodeId().equals(flowNodeId)) {
-                return action;
-            }
-        }
-        return null;
     }
 }

@@ -66,8 +66,8 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
     @Override
     public boolean start() throws Exception {
         String job = step.getJob();
-        Run<?, ?> run = getContext().get(Run.class);
-        Item item = Jenkins.get().getItem(job, run.getParent(), Item.class);
+        Run<?, ?> upstream = getContext().get(Run.class);
+        Item item = Jenkins.get().getItem(job, upstream.getParent(), Item.class);
         if (item == null) {
             throw new AbortException("No item named " + job + " found");
         }
@@ -78,11 +78,11 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         FlowNode node = getContext().get(FlowNode.class);
-        run.addAction(new DownstreamBuildAction(node.getId(), item));
+        DownstreamBuildAction.getOrCreate(upstream, node.getId(), item);
 
         List<Action> actions = new ArrayList<>();
-        actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), run)));
-        actions.add(new BuildUpstreamNodeAction(node, run));
+        actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), upstream)));
+        actions.add(new BuildUpstreamNodeAction(node, upstream));
 
         if (item instanceof ParameterizedJobMixIn.ParameterizedJob) {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
