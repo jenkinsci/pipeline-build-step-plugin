@@ -51,6 +51,9 @@ public final class DownstreamBuildAction extends InvisibleAction {
         private final String flowNodeId;
         private final String jobFullName;
         private Integer buildNumber;
+        private long estimatedDuration;
+        private String startedAgo;
+        private long started;
 
         DownstreamBuild(String flowNodeId, @NonNull Item job) {
             this.flowNodeId = flowNodeId;
@@ -73,6 +76,27 @@ public final class DownstreamBuildAction extends InvisibleAction {
         }
 
         /**
+         * Get the estimated duration of the downstream build, or {@code null} if the downstream build has not yet started or the queue item was cancelled.
+         */
+        public @CheckForNull long getEstimatedDuration() {
+            return estimatedDuration;
+        }
+
+        /**
+         * Get the started ago of the downstream build, or {@code null} if the downstream build has not yet started or the queue item was cancelled.
+         */
+        public @CheckForNull String getStartedAgo() {
+            return startedAgo;
+        }
+
+        /**
+         * Get the started time of the downstream build, or {@code null} if the downstream build has not yet started or the queue item was cancelled.
+         */
+        public @CheckForNull long getStarted() {
+            return started;
+        }
+
+        /**
          * Load the downstream build, if it has started and still exists.
          * <p>Loading builds indiscriminately will affect controller performance, so use this carefully. If you only need
          * to know whether the build started at one point, use {@link #getBuildNumber}.
@@ -87,6 +111,9 @@ public final class DownstreamBuildAction extends InvisibleAction {
 
         void setBuild(@NonNull Run<?, ?> run) {
             this.buildNumber = run.getNumber();
+            this.estimatedDuration = run.getEstimatedDuration();
+            this.startedAgo = run.getTimestampString();
+            this.started = run.getStartTimeInMillis();
         }
     }
 }
