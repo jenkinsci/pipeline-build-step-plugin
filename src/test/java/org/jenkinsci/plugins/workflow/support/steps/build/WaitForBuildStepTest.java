@@ -61,7 +61,7 @@ public class WaitForBuildStepTest {
         j.assertLogContains("'ds' completed with status " + dsResult.toString(), completedUsRun);
     }
 
-    @Test public void waitForBuildPropagte() throws Exception {
+    @Test public void waitForBuildPropagate() throws Exception {
         Result dsResult = Result.FAILURE;
         WorkflowJob ds = createWaitingDownStreamJob("wait", dsResult);
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
