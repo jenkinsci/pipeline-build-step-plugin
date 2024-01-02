@@ -20,7 +20,8 @@ import org.springframework.security.access.AccessDeniedException;
 public final class DownstreamBuildAction extends InvisibleAction {
     private final List<DownstreamBuild> downstreamBuilds = new ArrayList<>();
 
-    public static @NonNull DownstreamBuild getOrCreate(@NonNull Run<?, ?> run, @NonNull String flowNodeId, @NonNull Item job) {
+    public static @NonNull DownstreamBuild getOrCreate(@NonNull Run<?, ?> run, @NonNull String flowNodeId,
+                                                       @NonNull String flowNodeName, @NonNull Item job) {
         DownstreamBuildAction downstreamBuildAction;
         synchronized (DownstreamBuildAction.class) {
             downstreamBuildAction = run.getAction(DownstreamBuildAction.class);
@@ -29,36 +30,44 @@ public final class DownstreamBuildAction extends InvisibleAction {
                 run.addAction(downstreamBuildAction);
             }
         }
-        return downstreamBuildAction.getOrAddDownstreamBuild(flowNodeId, job);
+        return downstreamBuildAction.getOrAddDownstreamBuild(flowNodeId, flowNodeName, job);
     }
 
     public synchronized @NonNull List<DownstreamBuild> getDownstreamBuilds() {
         return Collections.unmodifiableList(new ArrayList<>(downstreamBuilds));
     }
 
-    private synchronized @NonNull DownstreamBuild getOrAddDownstreamBuild(@NonNull String flowNodeId, @NonNull Item job) {
+    private synchronized @NonNull DownstreamBuild getOrAddDownstreamBuild(@NonNull String flowNodeId,
+                                                                          @NonNull String flowNodeName,
+                                                                          @NonNull Item job) {
         for (DownstreamBuild build : downstreamBuilds) {
             if (build.getFlowNodeId().equals(flowNodeId)) {
                 return build;
             }
         }
-        var build = new DownstreamBuild(flowNodeId, job);
+        var build = new DownstreamBuild(flowNodeId, flowNodeName, job);
         downstreamBuilds.add(build);
         return build;
     }
 
     public static final class DownstreamBuild {
         private final String flowNodeId;
+        private final String flowNodeName;
         private final String jobFullName;
         private Integer buildNumber;
 
-        DownstreamBuild(String flowNodeId, @NonNull Item job) {
+        DownstreamBuild(@NonNull String flowNodeId, @NonNull String flowNodeName, @NonNull Item job) {
             this.flowNodeId = flowNodeId;
+            this.flowNodeName = flowNodeName;
             this.jobFullName = job.getFullName();
         }
 
         public @NonNull String getFlowNodeId() {
             return flowNodeId;
+        }
+
+        public @NonNull String getFlowNodeName() {
+            return jobFullName;
         }
 
         public @NonNull String getJobFullName() {

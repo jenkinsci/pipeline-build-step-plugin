@@ -78,7 +78,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
         }
 
         FlowNode node = getContext().get(FlowNode.class);
-        DownstreamBuildAction.getOrCreate(upstream, node.getId(), item);
+        DownstreamBuildAction.getOrCreate(upstream, node.getId(), node.getDisplayName(), item);
 
         List<Action> actions = new ArrayList<>();
         actions.add(new CauseAction(new BuildUpstreamCause(getContext().get(FlowNode.class), upstream)));

@@ -12,14 +12,20 @@ import org.jenkinsci.plugins.workflow.graph.FlowNode;
  */
 public class BuildUpstreamCause extends Cause.UpstreamCause {
     private final String nodeId;
+    private final String nodeName;
 
     public BuildUpstreamCause(FlowNode node, Run<?, ?> invokingRun) {
         super(invokingRun);
         this.nodeId = node.getId();
+        this.nodeName = node.getDisplayName();
     }
 
     public String getNodeId() {
         return nodeId;
+    }
+
+    public String getNodeName() {
+        return nodeName;
     }
 
     @Override

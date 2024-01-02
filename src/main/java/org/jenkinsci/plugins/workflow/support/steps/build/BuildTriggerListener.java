@@ -93,8 +93,7 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
                 BuildUpstreamCause buildUpstreamCause = (BuildUpstreamCause) cause;
                 Run<?, ?> upstream = buildUpstreamCause.getUpstreamRun();
                 if (upstream instanceof FlowExecutionOwner.Executable) {
-                    String flowNodeId = buildUpstreamCause.getNodeId();
-                    DownstreamBuildAction.getOrCreate(upstream, flowNodeId, downstream.getParent()).setBuild(downstream);
+                    DownstreamBuildAction.getOrCreate(upstream, buildUpstreamCause.getNodeId(), buildUpstreamCause.getNodeName(), downstream.getParent()).setBuild(downstream);
                     try {
                         upstream.save();
                     } catch (IOException e) {

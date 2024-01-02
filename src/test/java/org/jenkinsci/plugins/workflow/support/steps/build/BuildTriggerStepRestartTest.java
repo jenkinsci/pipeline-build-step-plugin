@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction.DownstreamBuild;
@@ -85,10 +86,11 @@ public class BuildTriggerStepRestartTest {
             upstream.setDefinition(new CpsFlowDefinition("build job: 'downstream', wait: false", true));
             WorkflowRun upstreamRun = j.buildAndAssertSuccess(upstream);
             // Check action while the build is still in the queue.
-            String buildStepId = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class).getId();
+            FlowNode flowNode = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class);
             var downstreamBuildAction = upstreamRun.getAction(DownstreamBuildAction.class);
             var downstreamBuild = downstreamBuildAction.getDownstreamBuilds().get(0);
-            assertThat(downstreamBuild.getFlowNodeId(), equalTo(buildStepId));
+            assertThat(downstreamBuild.getFlowNodeId(), equalTo(flowNode.getId()));
+            assertThat(downstreamBuild.getFlowNodeName(), equalTo(flowNode.getDisplayName()));
             assertThat(downstreamBuild.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(downstreamBuild.getBuildNumber(), nullValue());
             assertThat(downstreamBuild.getBuild(), nullValue());
@@ -105,10 +107,11 @@ public class BuildTriggerStepRestartTest {
             FreeStyleProject downstream = j.jenkins.getItemByFullName("downstream", FreeStyleProject.class);
             WorkflowJob upstream = j.jenkins.getItemByFullName("upstream", WorkflowJob.class);
             WorkflowRun upstreamRun = upstream.getLastBuild();
-            String buildStepId = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class).getId();
+            FlowNode flowNode = BuildTriggerStepTest.findFirstNodeWithDescriptor(upstreamRun.getExecution(), BuildTriggerStep.DescriptorImpl.class);
             var downstreamBuildAction = upstreamRun.getAction(DownstreamBuildAction.class);
             var downstreamBuild = downstreamBuildAction.getDownstreamBuilds().get(0);
-            assertThat(downstreamBuild.getFlowNodeId(), equalTo(buildStepId));
+            assertThat(downstreamBuild.getFlowNodeId(), equalTo(flowNode.getId()));
+            assertThat(downstreamBuild.getFlowNodeName(), equalTo(flowNode.getDisplayName()));
             assertThat(downstreamBuild.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(downstreamBuild.getBuildNumber(), equalTo(downstream.getLastBuild().getNumber()));
             assertThat(downstreamBuild.getBuild(), equalTo(downstream.getLastBuild()));
