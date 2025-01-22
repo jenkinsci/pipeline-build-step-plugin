@@ -50,7 +50,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerRequest2;
 
 public class BuildTriggerStep extends Step {
 
@@ -121,7 +121,7 @@ public class BuildTriggerStep extends Step {
         // Note: This is necessary because the JSON format of the parameters produced by config.jelly when
         // using the snippet generator does not match what would be neccessary for databinding to work automatically.
         // Only called via the snippet generator.
-        @Override public Step newInstance(@Nullable StaplerRequest req, @NonNull JSONObject formData) throws FormException {
+        @Override public Step newInstance(@Nullable StaplerRequest2 req, @NonNull JSONObject formData) throws FormException {
             BuildTriggerStep step = (BuildTriggerStep) super.newInstance(req, formData);
             // Cf. ParametersDefinitionProperty._doBuild:
             Object parameter = formData.get("parameter");
