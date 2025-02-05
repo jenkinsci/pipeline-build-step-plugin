@@ -2,10 +2,10 @@ package org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep;
 def st = namespace('jelly:stapler')
 def l = namespace('/lib/layout')
 l.ajax {
-    def jobName = request.getParameter('job')
+    def jobName = request2.getParameter('job')
     if (jobName != null) {
         // Cf. BuildTriggerStepExecution:
-        def contextName = request.getParameter('context')
+        def contextName = request2.getParameter('context')
         def context = contextName != null ? app.getItemByFullName(contextName) : null
         def job = app.getItem(jobName, (hudson.model.Item) context, hudson.model.Item)
         if (job instanceof jenkins.model.ParameterizedJobMixIn.ParameterizedJob) {
