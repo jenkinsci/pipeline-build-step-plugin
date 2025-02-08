@@ -173,6 +173,7 @@ public class WaitForBuildStepTest {
         SemaphoreStep.success("scheduled/1", true);
 
         WorkflowRun dsRun = ds.getBuildByNumber(1);
+        SemaphoreStep.waitForStart("wait/1", dsRun);
         waitForWaitForBuildAction(dsRun);
 
         // Abort the downstream build
@@ -201,6 +202,7 @@ public class WaitForBuildStepTest {
         SemaphoreStep.success("scheduled/1", true);
 
         WorkflowRun dsRun = ds.getBuildByNumber(1);
+        SemaphoreStep.waitForStart("wait/1", dsRun);
         waitForWaitForBuildAction(dsRun);
 
         // Abort the upstream build
@@ -229,6 +231,7 @@ public class WaitForBuildStepTest {
         SemaphoreStep.success("scheduled/1", true);
 
         WorkflowRun dsRun = ds.getBuildByNumber(1);
+        SemaphoreStep.waitForStart("wait/1", dsRun);
         waitForWaitForBuildAction(dsRun);
 
         // Abort the upstream build
