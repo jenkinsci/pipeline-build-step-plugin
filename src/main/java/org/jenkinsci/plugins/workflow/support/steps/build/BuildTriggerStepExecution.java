@@ -88,7 +88,11 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             final ParameterizedJobMixIn.ParameterizedJob project = (ParameterizedJobMixIn.ParameterizedJob) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
-            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
+            if (!step.getWait() || step.getWaitForStart()) {
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling_(project.getFullDisplayName())));
+            } else {
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
+            }
 
             if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
@@ -115,6 +119,12 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             Queue.Task task = (Queue.Task) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
             node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
+            if (!step.getWait() || step.getWaitForStart()) {
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling_(task.getFullDisplayName())));
+            } else {
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));    
+            }
+
             if (step.getWait() || step.getWaitForStart()) {
                 StepContext context = getContext();
                 actions.add(new BuildTriggerAction(context, step.isPropagate(), step.getWaitForStart()));
