@@ -10,6 +10,9 @@ import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
+
+import org.jenkinsci.plugins.workflow.actions.LabelAction;
+import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepExecutionImpl;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -38,6 +41,9 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
         if (run == null) {
             throw new AbortException("No build exists with runId " + step.getRunId());
         }
+
+        FlowNode node = getContext().get(FlowNode.class);
+        node.addAction(new LabelAction(Messages.WaitForBuildStepExecution_waitfor_(step.getRunId())));
 
         String runHyperLink = ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName());
         TaskListener taskListener = getContext().get(TaskListener.class);
