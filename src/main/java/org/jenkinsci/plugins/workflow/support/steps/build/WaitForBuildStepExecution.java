@@ -43,7 +43,7 @@ public class WaitForBuildStepExecution extends AbstractStepExecutionImpl {
         }
 
         FlowNode node = getContext().get(FlowNode.class);
-        node.addAction(new LabelAction(Messages.WaitForBuildStepExecution_waitfor_(step.getRunId())));
+        node.addAction(new LabelAction(Messages.WaitForBuildStepExecution_waitfor(step.getRunId())));
 
         String runHyperLink = ModelHyperlinkNote.encodeTo("/" + run.getUrl(), run.getFullDisplayName());
         TaskListener taskListener = getContext().get(TaskListener.class);

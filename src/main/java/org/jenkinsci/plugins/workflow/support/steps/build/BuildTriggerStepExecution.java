@@ -89,7 +89,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             getContext().get(TaskListener.class).getLogger().println("Scheduling project: " + ModelHyperlinkNote.encodeTo(project));
 
             if (!step.getWait() || step.getWaitForStart()) {
-                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling_(project.getFullDisplayName())));
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling(project.getFullDisplayName())));
             } else {
                 node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(project.getFullDisplayName())));
             }
@@ -119,7 +119,7 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             Queue.Task task = (Queue.Task) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
             if (!step.getWait() || step.getWaitForStart()) {
-                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling_(task.getFullDisplayName())));
+                node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling(task.getFullDisplayName())));
             } else {
                 node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));    
             }
