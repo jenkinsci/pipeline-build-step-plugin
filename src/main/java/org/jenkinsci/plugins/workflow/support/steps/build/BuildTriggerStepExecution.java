@@ -118,7 +118,6 @@ public class BuildTriggerStepExecution extends AbstractStepExecutionImpl {
             }
             Queue.Task task = (Queue.Task) item;
             getContext().get(TaskListener.class).getLogger().println("Scheduling item: " + ModelHyperlinkNote.encodeTo(item));
-            node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_building_(task.getFullDisplayName())));
             if (!step.getWait() || step.getWaitForStart()) {
                 node.addAction(new LabelAction(Messages.BuildTriggerStepExecution_scheduling_(task.getFullDisplayName())));
             } else {
