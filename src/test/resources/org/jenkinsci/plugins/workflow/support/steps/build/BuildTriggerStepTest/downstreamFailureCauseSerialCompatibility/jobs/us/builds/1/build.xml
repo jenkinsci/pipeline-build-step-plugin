@@ -1,0 +1,69 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-build plugin="workflow-job@1498.v33a_0c6f3a_4b_4">
+  <actions>
+    <org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction>
+      <downstreamBuilds>
+        <org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction_-DownstreamBuild>
+          <flowNodeId>3</flowNodeId>
+          <jobFullName>ds</jobFullName>
+          <buildNumber>1</buildNumber>
+        </org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction_-DownstreamBuild>
+      </downstreamBuilds>
+    </org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction>
+    <jenkins.model.InterruptedBuildAction>
+      <causes>
+        <org.jenkinsci.plugins.workflow.support.steps.build.DownstreamFailureCause>
+          <id>ds#1</id>
+        </org.jenkinsci.plugins.workflow.support.steps.build.DownstreamFailureCause>
+      </causes>
+    </jenkins.model.InterruptedBuildAction>
+  </actions>
+  <queueId>1</queueId>
+  <timestamp>1751059809189</timestamp>
+  <startTime>1751059809203</startTime>
+  <result>FAILURE</result>
+  <duration>738</duration>
+  <charset>UTF-8</charset>
+  <keepLog>false</keepLog>
+  <execution class="org.jenkinsci.plugins.workflow.cps.CpsFlowExecution">
+    <result>FAILURE</result>
+    <script>build &apos;ds&apos;</script>
+    <loadedScripts class="linked-hash-map"/>
+    <durabilityHint>MAX_SURVIVABILITY</durabilityHint>
+    <timings class="map">
+      <entry>
+        <string>flowNode</string>
+        <long>130572877</long>
+      </entry>
+      <entry>
+        <string>classLoad</string>
+        <long>73113619</long>
+      </entry>
+      <entry>
+        <string>runQueue</string>
+        <long>149926916</long>
+      </entry>
+      <entry>
+        <string>run</string>
+        <long>251898084</long>
+      </entry>
+      <entry>
+        <string>parse</string>
+        <long>158498583</long>
+      </entry>
+      <entry>
+        <string>saveProgram</string>
+        <long>75634416</long>
+      </entry>
+    </timings>
+    <internalCalls class="sorted-set"/>
+    <sandbox>true</sandbox>
+    <iota>4</iota>
+    <head>1:4</head>
+    <done>true</done>
+    <resumeBlocked>false</resumeBlocked>
+    <storageDir>workflow-completed</storageDir>
+  </execution>
+  <completed>true</completed>
+  <checkouts class="hudson.util.PersistedList"/>
+</flow-build>

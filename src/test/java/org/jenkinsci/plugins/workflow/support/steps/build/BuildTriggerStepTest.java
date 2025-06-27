@@ -31,7 +31,9 @@ import hudson.model.StringParameterValue;
 import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
+import hudson.util.StreamTaskListener;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -69,6 +71,7 @@ import org.jenkinsci.plugins.workflow.graph.FlowGraphWalker;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -88,8 +91,10 @@ import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.UnstableBuilder;
 import org.jvnet.hudson.test.recipes.LocalData;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -867,6 +872,49 @@ public class BuildTriggerStepTest {
         String snippet = "build job: 'project1', parameters: [password(name: 'password', description: 'description', value: '" + PasswordParameterDefinition.DEFAULT_VALUE + "')]";
 
         st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'project1', 'parameter': {'name': 'password', 'description': 'description', 'value': '" + PasswordParameterDefinition.DEFAULT_VALUE + "'}}", snippet, us.getAbsoluteUrl() + "configure");
+    }
+
+    @LocalData
+    @Test public void downstreamFailureCauseSerialCompatibility() throws Exception {
+        // LocalData created as of eace550 with this test script:
+        /*
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDisplayName("DoWnStReAm");
+        ds.setDefinition(new CpsFlowDefinition("error 'oops!'", true));
+        j.buildAndAssertStatus(Result.FAILURE, us);
+        */
+        var us = j.jenkins.getItemByFullName("us", WorkflowJob.class);
+        var b = us.getBuildByNumber(1);
+        var failure = (FlowInterruptedException) b.getExecution().getCauseOfFailure();
+        assertThat(failure.getCauses(), contains(instanceOf(DownstreamFailureCause.class)));
+        var cause = (DownstreamFailureCause) failure.getCauses().get(0);
+        assertThat(cause.getShortDescription(), containsString("DoWnStReAm #1 completed with status FAILURE"));
+        var writer = new StringWriter();
+        try (var tl = new StreamTaskListener(writer)) {
+            cause.print(tl);
+        }
+        assertThat(writer.toString(), containsString("DoWnStReAm #1 completed with status FAILURE"));
+    }
+
+    @Test public void downstreamFailureCauseMessage() throws Exception {
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
+        us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
+        ds.setDisplayName("DoWnStReAm");
+        ds.setDefinition(new CpsFlowDefinition("error 'oops!'", true));
+        var b = j.buildAndAssertStatus(Result.FAILURE, us);
+        var failure = (FlowInterruptedException) b.getExecution().getCauseOfFailure();
+        assertThat(failure.getCauses(), contains(instanceOf(DownstreamFailureCause.class)));
+        var cause = (DownstreamFailureCause) failure.getCauses().get(0);
+        // DownstreamFailureCause now uses Job.getFullName, not Job.getFullDisplayName.
+        assertThat(cause.getShortDescription(), containsString("ds #1 completed with status FAILURE"));
+        var writer = new StringWriter();
+        try (var tl = new StreamTaskListener(writer)) {
+            cause.print(tl);
+        }
+        assertThat(writer.toString(), containsString("ds #1 completed with status FAILURE"));
     }
 
     private static ParameterValue getParameter(Run<?, ?> run, String parameterName) {

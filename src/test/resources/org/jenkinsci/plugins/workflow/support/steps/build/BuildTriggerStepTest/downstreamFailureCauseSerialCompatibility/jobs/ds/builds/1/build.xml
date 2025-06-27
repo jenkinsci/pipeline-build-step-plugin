@@ -1,0 +1,89 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-build plugin="workflow-job@1498.v33a_0c6f3a_4b_4">
+  <actions>
+    <hudson.model.CauseAction>
+      <causeBag class="linked-hash-map">
+        <entry>
+          <org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamCause>
+            <upstreamProject>us</upstreamProject>
+            <upstreamUrl>job/us/</upstreamUrl>
+            <upstreamBuild>1</upstreamBuild>
+            <upstreamCauses/>
+            <nodeId>3</nodeId>
+          </org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamCause>
+          <int>1</int>
+        </entry>
+      </causeBag>
+    </hudson.model.CauseAction>
+    <org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamNodeAction>
+      <upstreamNodeId>3</upstreamNodeId>
+      <upstreamRunId>us#1</upstreamRunId>
+    </org.jenkinsci.plugins.workflow.support.steps.build.BuildUpstreamNodeAction>
+    <org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerAction>
+      <triggers>
+        <org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerAction_-Trigger>
+          <context class="org.jenkinsci.plugins.workflow.cps.CpsStepContext" plugin="workflow-cps@4014.vcd7dc51d8b_30">
+            <executionRef class="flow-owner" plugin="workflow-job@1498.v33a_0c6f3a_4b_4">
+              <job>us</job>
+              <id>1</id>
+            </executionRef>
+            <id>3</id>
+            <bodyHeads/>
+            <threadId>0</threadId>
+            <stepDescriptorId>org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep</stepDescriptorId>
+          </context>
+          <propagate>true</propagate>
+          <waitForStart>false</waitForStart>
+        </org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerAction_-Trigger>
+      </triggers>
+    </org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerAction>
+  </actions>
+  <queueId>2</queueId>
+  <timestamp>1751059809587</timestamp>
+  <startTime>1751059809598</startTime>
+  <result>FAILURE</result>
+  <duration>199</duration>
+  <charset>UTF-8</charset>
+  <keepLog>false</keepLog>
+  <execution class="org.jenkinsci.plugins.workflow.cps.CpsFlowExecution">
+    <result>FAILURE</result>
+    <script>error &apos;oops!&apos;</script>
+    <loadedScripts class="linked-hash-map"/>
+    <durabilityHint>MAX_SURVIVABILITY</durabilityHint>
+    <timings class="map">
+      <entry>
+        <string>flowNode</string>
+        <long>98746878</long>
+      </entry>
+      <entry>
+        <string>classLoad</string>
+        <long>4314291</long>
+      </entry>
+      <entry>
+        <string>runQueue</string>
+        <long>87940584</long>
+      </entry>
+      <entry>
+        <string>run</string>
+        <long>110061792</long>
+      </entry>
+      <entry>
+        <string>parse</string>
+        <long>7480875</long>
+      </entry>
+      <entry>
+        <string>saveProgram</string>
+        <long>6425000</long>
+      </entry>
+    </timings>
+    <internalCalls class="sorted-set"/>
+    <sandbox>true</sandbox>
+    <iota>4</iota>
+    <head>1:4</head>
+    <done>true</done>
+    <resumeBlocked>false</resumeBlocked>
+    <storageDir>workflow-completed</storageDir>
+  </execution>
+  <completed>true</completed>
+  <checkouts class="hudson.util.PersistedList"/>
+</flow-build>
