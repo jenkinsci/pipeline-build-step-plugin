@@ -54,7 +54,6 @@ import jenkins.scm.impl.mock.MockSCMController;
 import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
-import org.apache.commons.lang.StringUtils;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -270,11 +269,14 @@ public class BuildTriggerStepTest {
         p2.getBuildersList().add(new SleepBuilder(1));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("parallel(test1: {\n" +
-                "          build('test1');\n" +
-                "        }, test2: {\n" +
-                "          build('test2');\n" +
-                "        })"), "\n"), true));
+        foo.setDefinition(new CpsFlowDefinition("""
+                parallel(test1: {
+                          build('test1');
+                        }, test2: {
+                          build('test2');
+                        }
+                )
+                """, true));
 
         j.buildAndAssertSuccess(foo);
     }
@@ -286,7 +288,9 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
+        foo.setDefinition(new CpsFlowDefinition("""
+                build('test1');
+                """, true));
 
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
@@ -333,7 +337,9 @@ public class BuildTriggerStepTest {
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
         WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
+        foo.setDefinition(new CpsFlowDefinition("""
+                build('test1');
+                """, true));
 
         j.jenkins.setNumExecutors(0); //should force freestyle build to remain in the queue?
 

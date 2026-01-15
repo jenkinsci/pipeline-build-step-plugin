@@ -9,7 +9,6 @@ import hudson.util.FormValidation;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.workflow.graph.FlowNode;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
@@ -80,7 +79,7 @@ public class WaitForBuildStep extends Step {
 
     @SuppressWarnings("rawtypes")
     public FormValidation doCheckRunId(@AncestorInPath ItemGroup<?> context, @QueryParameter String value) {
-        if (StringUtils.isBlank(value)) {
+        if (value.isEmpty()) {
             return FormValidation.warning(Messages.WaitForBuildStep_no_run_configured());
         }
         Run run = Run.fromExternalizableId(value);
