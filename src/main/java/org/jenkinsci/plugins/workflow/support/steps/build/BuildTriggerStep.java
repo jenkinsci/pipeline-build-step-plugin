@@ -33,8 +33,8 @@ import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -305,7 +305,7 @@ public class BuildTriggerStep extends Step {
         public String getContextEncoded() {
             final String context = getContext();
             //Functions.jsStringEscape() is also an alternative though the one below escapes more stuff
-            return context != null ? StringEscapeUtils.escapeJavaScript(context) : null;
+            return context != null ? StringEscapeUtils.escapeEcmaScript(context) : null;
         }
 
         public FormValidation doCheckPropagate(@QueryParameter boolean value, @QueryParameter boolean wait) {
