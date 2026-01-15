@@ -3,8 +3,6 @@ package org.jenkinsci.plugins.workflow.support.steps.build;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
-import hudson.Functions;
-import hudson.Util;
 import hudson.model.AutoCompletionCandidates;
 import hudson.model.Describable;
 import hudson.model.Item;
@@ -33,8 +31,6 @@ import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.text.StringEscapeUtils;
 import org.jenkinsci.plugins.structs.describable.CustomDescribableModel;
 import org.jenkinsci.plugins.structs.describable.DescribableModel;
 import org.jenkinsci.plugins.structs.describable.UninstantiatedDescribable;
@@ -301,13 +297,6 @@ public class BuildTriggerStep extends Step {
             return job != null ? job.getFullName() : null;
         }
 
-        @Restricted(DoNotUse.class) // for use from config.jelly
-        public String getContextEncoded() {
-            final String context = getContext();
-            //Functions.jsStringEscape() is also an alternative though the one below escapes more stuff
-            return context != null ? StringEscapeUtils.escapeEcmaScript(context) : null;
-        }
-
         public FormValidation doCheckPropagate(@QueryParameter boolean value, @QueryParameter boolean wait) {
             if (!value && !wait) {
                 return FormValidation.warningWithMarkup(Messages.BuildTriggerStep_explicitly_disabling_both_propagate_and_wait());
@@ -330,7 +319,7 @@ public class BuildTriggerStep extends Step {
         }
 
         public FormValidation doCheckJob(@AncestorInPath ItemGroup<?> context, @QueryParameter String value) {
-            if (StringUtils.isBlank(value)) {
+            if (value.isEmpty()) {
                 return FormValidation.warning(Messages.BuildTriggerStep_no_job_configured());
             }
             Item item = Jenkins.get().getItem(value, context, Item.class);
