@@ -53,7 +53,6 @@ import jenkins.scm.impl.mock.MockSCMController;
 import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
-import org.apache.commons.lang.StringUtils;
 
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -282,13 +281,15 @@ class BuildTriggerStepTest {
         FreeStyleProject p2 = r.createFreeStyleProject("test2");
         p2.getBuildersList().add(new SleepBuilder(1));
 
-        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("""
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("""
                 parallel(test1: {
                           build('test1');
                         }, test2: {
                           build('test2');
-                        })"""), "\n"), true));
+                        }
+                )
+                """, true));
 
         r.buildAndAssertSuccess(foo);
     }
@@ -299,8 +300,10 @@ class BuildTriggerStepTest {
         FreeStyleProject p = r.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
-        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("""
+                build('test1');
+                """, true));
 
         QueueTaskFuture<WorkflowRun> q = foo.scheduleBuild2(0);
         WorkflowRun b = q.getStartCondition().get();
@@ -347,8 +350,10 @@ class BuildTriggerStepTest {
         FreeStyleProject p = r.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
-        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
-        foo.setDefinition(new CpsFlowDefinition(StringUtils.join(Collections.singletonList("build('test1');"), "\n"), true));
+        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        foo.setDefinition(new CpsFlowDefinition("""
+                build('test1');
+                """, true));
 
         r.jenkins.setNumExecutors(0); //should force freestyle build to remain in the queue?
 

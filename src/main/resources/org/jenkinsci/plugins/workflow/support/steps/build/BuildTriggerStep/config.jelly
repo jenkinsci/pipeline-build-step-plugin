@@ -27,7 +27,7 @@ THE SOFTWARE.
 <j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:st="jelly:stapler">
     <j:set var="jobFieldId" value="${h.generateId()}"/>
     <f:entry field="job" title="Project to Build">
-    <span class="textbox-params-reference-holder" data-id="${jobFieldId}"/>
+    <span class="textbox-params-reference-holder" data-id="${jobFieldId}" data-context="${descriptor.context}"/>
         <f:textbox id="${jobFieldId}"/>
         <st:adjunct includes="org.jenkinsci.plugins.workflow.support.steps.build.BuildTriggerStep.configLoad"/>
     </f:entry>
