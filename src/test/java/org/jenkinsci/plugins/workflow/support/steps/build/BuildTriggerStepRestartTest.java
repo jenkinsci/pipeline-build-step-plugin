@@ -15,31 +15,36 @@ import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.support.steps.build.DownstreamBuildAction.DownstreamBuild;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.JenkinsSessionRule;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.JenkinsSessionExtension;
+
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * @author Vivek Pandey
  */
-public class BuildTriggerStepRestartTest {
+class BuildTriggerStepRestartTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsSessionRule sessions = new JenkinsSessionRule();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
+
+    @RegisterExtension
+    private final JenkinsSessionExtension sessions = new JenkinsSessionExtension();
 
     @Test
-    public void restartBetweenJobs() throws Throwable {
-
+    void restartBetweenJobs() throws Throwable {
         sessions.then(j -> {
                               j.jenkins.setNumExecutors(0);
                               FreeStyleProject p1 = j.createFreeStyleProject("test1");
@@ -77,7 +82,7 @@ public class BuildTriggerStepRestartTest {
     }
 
     @Test
-    public void downstreamBuildActionUpstreamCompletesBeforeDownstreamStarts() throws Throwable {
+    void downstreamBuildActionUpstreamCompletesBeforeDownstreamStarts() throws Throwable {
         sessions.then(j -> {
             FreeStyleProject downstream = j.createFreeStyleProject("downstream");
             downstream.setAssignedLabel(Label.parseExpression("agent"));
@@ -94,7 +99,7 @@ public class BuildTriggerStepRestartTest {
             assertThat(downstreamBuild.getBuild(), nullValue());
             // Check again once the build has started.
             j.createOnlineSlave(Label.parseExpression("agent"));
-            await().atMost(10, TimeUnit.SECONDS).until(() -> downstreamBuild.getBuildNumber(), notNullValue());
+            await().atMost(10, TimeUnit.SECONDS).until(downstreamBuild::getBuildNumber, notNullValue());
             Run<?, ?> downstreamRun = downstream.getLastBuild();
             assertThat(downstreamBuild.getJobFullName(), equalTo(downstream.getFullName()));
             assertThat(downstreamBuild.getBuildNumber(), equalTo(downstreamRun.getNumber()));
@@ -116,7 +121,7 @@ public class BuildTriggerStepRestartTest {
     }
 
     @Test
-    public void downstreamBuildActionMultipleBuilds() throws Throwable {
+    void downstreamBuildActionMultipleBuilds() throws Throwable {
         sessions.then(j -> {
             FreeStyleProject downstream = j.createFreeStyleProject("downstream");
             WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
@@ -157,7 +162,7 @@ public class BuildTriggerStepRestartTest {
                 actual++;
             }
         }
-        assertEquals(Arrays.toString(items), count, actual);
+        assertEquals(count, actual, Arrays.toString(items));
     }
 
 }
