@@ -28,41 +28,45 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.htmlunit.AlertHandler;
 import org.htmlunit.Page;
 import org.htmlunit.html.DomElement;
-import org.htmlunit.html.HtmlElement;
-import org.htmlunit.html.HtmlForm;
-import org.htmlunit.html.HtmlInput;
 import org.htmlunit.html.HtmlPage;
 import org.htmlunit.html.HtmlSelect;
 import org.htmlunit.html.HtmlTextInput;
-import org.htmlunit.javascript.host.html.HTMLInputElement;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.steps.StepConfigTester;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-public class BuildTriggerStepConfigTest {
+@WithJenkins
+class BuildTriggerStepConfigTest {
 
-    @Rule public JenkinsRule r = new JenkinsRule();
+    private JenkinsRule r;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        r = rule;
+    }
 
     @Issue("JENKINS-26692")
-    @Test public void configRoundTrip() throws Exception {
+    @Test
+    void configRoundTrip() throws Exception {
         BuildTriggerStep s = new BuildTriggerStep("ds");
         s = new StepConfigTester(r).configRoundTrip(s);
         assertNull(s.getQuietPeriod());
@@ -78,15 +82,17 @@ public class BuildTriggerStepConfigTest {
     }
 
     @Issue("JENKINS-38114")
-    @Test public void helpWait() throws Exception {
+    @Test
+    void helpWait() throws Exception {
         assertThat(r.createWebClient().goTo(r.executeOnServer(()
                                 -> r.jenkins.getDescriptorByType(BuildTriggerStep.DescriptorImpl.class).getHelpFile("wait"))
                         .replaceFirst("^/", ""), /* TODO why is no content type set? */null)
                 .getWebResponse().getContentAsString(), containsString("<dt><code>buildVariables</code></dt>"));
     }
 
-    @Test @Issue("SECURITY-3019")
-    public void escapedSnippetConfig() throws IOException, SAXException {
+    @Test
+    @Issue("SECURITY-3019")
+    void escapedSnippetConfig() throws IOException, SAXException {
         final String jobName = "'+alert(123)+'";
         WorkflowJob j = r.createProject(WorkflowJob.class, jobName);
         try (JenkinsRule.WebClient webClient = r.createWebClient()) {
@@ -108,7 +114,8 @@ public class BuildTriggerStepConfigTest {
     }
 
     static class Alerter implements AlertHandler {
-        List<String> messages = Collections.synchronizedList(new ArrayList<>());
+        final List<String> messages = Collections.synchronizedList(new ArrayList<>());
+
         @Override
         public void handleAlert(final Page page, final String message) {
             messages.add(message);
