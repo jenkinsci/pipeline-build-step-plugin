@@ -52,7 +52,11 @@ public class WaitForBuildListener extends RunListener<Run<?,?>> {
     @Override
     public void onDeleted(final Run<?,?> run) {
         for (WaitForBuildAction action : run.getActions(WaitForBuildAction.class)) {
-            Timer.get().submit(() -> action.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted")));
+            Timer.get().submit(() -> {
+                if (action.context.isReady()) {
+                    action.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted"));
+                }
+            });
         }
     }
 }
