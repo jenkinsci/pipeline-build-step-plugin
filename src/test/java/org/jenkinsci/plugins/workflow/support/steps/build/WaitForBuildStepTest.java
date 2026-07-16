@@ -38,18 +38,18 @@ class WaitForBuildStepTest {
     @SuppressWarnings("unused")
     private final LogRecorder logging = new LogRecorder();
 
-    private JenkinsRule r;
+    private JenkinsRule j;
 
     @BeforeEach
     void beforeEach(JenkinsRule rule) {
-        r = rule;
+        j = rule;
     }
 
     @Test
     void waitForBuild() throws Exception {
         Result dsResult = Result.FAILURE;
         WorkflowJob ds = createWaitingDownStreamJob("wait", dsResult);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -72,16 +72,16 @@ class WaitForBuildStepTest {
         SemaphoreStep.success("wait/1", true);
 
         // assert upstream build status
-        WorkflowRun completedUsRun = r.waitForCompletion(usRun);
-        r.assertBuildStatusSuccess(completedUsRun);
-        r.assertLogContains("'ds' completed with status " + dsResult, completedUsRun);
+        WorkflowRun completedUsRun = j.waitForCompletion(usRun);
+        j.assertBuildStatusSuccess(completedUsRun);
+        j.assertLogContains("'ds' completed with status " + dsResult, completedUsRun);
     }
 
     @Test
     void waitForBuildPropagate() throws Exception {
         Result dsResult = Result.FAILURE;
         WorkflowJob ds = createWaitingDownStreamJob("wait", dsResult);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -102,37 +102,37 @@ class WaitForBuildStepTest {
         SemaphoreStep.success("wait/1", true);
 
         // assert upstream build status
-        WorkflowRun completedUsRun = r.waitForCompletion(usRun);
-        r.assertBuildStatus(dsResult, completedUsRun);
-        r.assertLogContains("completed with status " + dsResult, completedUsRun);
+        WorkflowRun completedUsRun = j.waitForCompletion(usRun);
+        j.assertBuildStatus(dsResult, completedUsRun);
+        j.assertLogContains("completed with status " + dsResult, completedUsRun);
     }
 
     @SuppressWarnings("rawtypes")
     @Test
     void waitForBuildAlreadyCompleteFailure() throws Exception {
-        FreeStyleProject ds = r.createFreeStyleProject("ds");
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.getBuildersList().add(new FailureBuilder());
         Run ds1 = ds.scheduleBuild2(0).waitForStart();
         assertEquals(1, ds1.getNumber());
-        r.waitForCompletion(ds1);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        j.waitForCompletion(ds1);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1'", true));
         Result dsResult = Result.FAILURE;
-        r.assertLogContains("already completed: "+ dsResult, r.buildAndAssertSuccess(us));
+        j.assertLogContains("already completed: "+ dsResult, j.buildAndAssertSuccess(us));
     }
 
     @Issue("JENKINS-71342")
     @SuppressWarnings("rawtypes")
     @Test void waitForBuildPropagateAlreadyCompleteFailure() throws Exception {
-        FreeStyleProject ds = r.createFreeStyleProject("ds");
+        FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.getBuildersList().add(new FailureBuilder());
         Run ds1 = ds.scheduleBuild2(0).waitForStart();
         assertEquals(1, ds1.getNumber());
-        r.waitForCompletion(ds1);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        j.waitForCompletion(ds1);
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("waitForBuild runId: 'ds#1', propagate: true", true));
         Result dsResult = Result.FAILURE;
-        r.assertLogContains("already completed: "+ dsResult, r.buildAndAssertStatus(dsResult, us));
+        j.assertLogContains("already completed: "+ dsResult, j.buildAndAssertStatus(dsResult, us));
     }
 
     @Issue("JENKINS-70983")
@@ -140,7 +140,7 @@ class WaitForBuildStepTest {
     void waitForUnstableBuildWithWarningAction() throws Exception {
         Result dsResult = Result.UNSTABLE;
         WorkflowJob ds = createWaitingDownStreamJob("wait", dsResult);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -165,9 +165,9 @@ class WaitForBuildStepTest {
         SemaphoreStep.success("wait/1", true);
 
         // assert upstream build status
-        WorkflowRun completedUsRun = r.waitForCompletion(usRun);
-        r.assertBuildStatus(dsResult, completedUsRun);
-        r.assertLogContains("'ds' completed with status " + dsResult, completedUsRun);
+        WorkflowRun completedUsRun = j.waitForCompletion(usRun);
+        j.assertBuildStatus(dsResult, completedUsRun);
+        j.assertLogContains("'ds' completed with status " + dsResult, completedUsRun);
 
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(completedUsRun.getExecution(), WaitForBuildStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
@@ -179,7 +179,7 @@ class WaitForBuildStepTest {
     @Test
     void abortBuild() throws Exception {
         WorkflowJob ds = createWaitingDownStreamJob("wait", Result.SUCCESS);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -202,15 +202,15 @@ class WaitForBuildStepTest {
         // Abort the downstream build
         dsRun.getExecutor().interrupt();
 
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(dsRun));
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(usRun));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(dsRun));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(usRun));
     }
 
     @Issue("JENKINS-71961")
     @Test
     void interruptFlowPropagateAbort() throws Exception {
         WorkflowJob ds = createWaitingDownStreamJob("wait", Result.SUCCESS);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -233,15 +233,15 @@ class WaitForBuildStepTest {
         // Abort the upstream build
         usRun.doStop();
 
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(dsRun));
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(usRun));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(dsRun));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(usRun));
     }
 
     @Issue("JENKINS-71961")
     @Test
     void interruptFlowNoPropagateAbort() throws Exception {
         WorkflowJob ds = createWaitingDownStreamJob("wait", Result.SUCCESS);
-        WorkflowJob us = r.jenkins.createProject(WorkflowJob.class, "us");
+        WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
                 """
                         def ds = build job: 'ds', waitForStart: true
@@ -263,11 +263,11 @@ class WaitForBuildStepTest {
 
         // Abort the upstream build
         usRun.doStop();
-        r.assertBuildStatus(Result.ABORTED, r.waitForCompletion(usRun));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(usRun));
 
         // Allow the downstream to complete
         SemaphoreStep.success("wait/1", true);
-        r.assertBuildStatus(Result.SUCCESS, r.waitForCompletion(dsRun));
+        j.assertBuildStatus(Result.SUCCESS, j.waitForCompletion(dsRun));
     }
 
     private static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class<WaitForBuildStep.DescriptorImpl> cls) {
@@ -282,7 +282,7 @@ class WaitForBuildStepTest {
     }
 
     private WorkflowJob createWaitingDownStreamJob(String semaphoreName, Result result) throws Exception {
-        WorkflowJob ds = r.jenkins.createProject(WorkflowJob.class, "ds");
+        WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition(
             "semaphore('" + semaphoreName + "')\n" +
             "catchError(buildResult: '" + result.toString() + "') {\n" +
