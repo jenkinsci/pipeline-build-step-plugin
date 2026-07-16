@@ -126,9 +126,6 @@ class BuildTriggerStepTest {
             "def ds = build 'ds'\n" +
             "echo \"ds.result=${ds.result} ds.number=${ds.number}\"", true));
         j.assertLogContains("ds.result=SUCCESS ds.number=1", j.buildAndAssertSuccess(us));
-        // TODO JENKINS-28673 assert no warnings, as in StartupTest.noWarnings
-        // (but first need to deal with `WARNING: Failed to instantiate optional component org.jenkinsci.plugins.workflow.steps.scm.SubversionStep$DescriptorImpl; skipping`)
-        ds.getBuildByNumber(1).delete();
     }
 
     @Issue("JENKINS-25851")
@@ -527,7 +524,6 @@ class BuildTriggerStepTest {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("def vars = build('ds').buildVariables; echo \"received RESULT=${vars.RESULT} vs. BUILD_NUMBER=${vars.BUILD_NUMBER}\"", true));
         j.assertLogContains("received RESULT=ds-1 vs. BUILD_NUMBER=null", j.buildAndAssertSuccess(us));
-        ds.getBuildByNumber(1).delete();
     }
 
     @Issue("JENKINS-28063")

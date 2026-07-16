@@ -6,10 +6,13 @@ import hudson.model.Label;
 import hudson.model.Queue;
 import hudson.model.Result;
 import hudson.model.Run;
+import hudson.tasks.LogRotator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import jenkins.model.BuildDiscarderProperty;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowExecution;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
@@ -26,14 +29,16 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.any;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.jvnet.hudson.test.LogRecorder;
+import static org.jvnet.hudson.test.LogRecorder.recorded;
 
-/**
- * @author Vivek Pandey
- */
 class BuildTriggerStepRestartTest {
 
     @SuppressWarnings("unused")
@@ -77,8 +82,6 @@ class BuildTriggerStepRestartTest {
                               assertNotNull(r2);
                               j.assertBuildStatusSuccess(r2);
         });
-
-        sessions.then(j -> j.jenkins.getItemByFullName("test1", FreeStyleProject.class).getBuildByNumber(1).delete());
     }
 
     @Test
@@ -163,6 +166,36 @@ class BuildTriggerStepRestartTest {
             }
         }
         assertEquals(count, actual, Arrays.toString(items));
+    }
+
+    @Test
+    void upstreamBuildDeletion() throws Throwable {
+        buildDeletion(1, 2);
+    }
+
+    @Test
+    void downstreamBuildDeletion() throws Throwable {
+        buildDeletion(2, 1);
+    }
+
+    private void buildDeletion(int upstreamNumToKeep, int downstreamNumToKeep) throws Throwable {
+        sessions.then(r -> {
+            r.jenkins.setQuietPeriod(0);
+            var ds = r.jenkins.createProject(WorkflowJob.class, "ds");
+            ds.setDefinition(new CpsFlowDefinition("echo 'ran'", true));
+            ds.addProperty(new BuildDiscarderProperty(new LogRotator(-1, downstreamNumToKeep, -1, -1)));
+            var us = r.jenkins.createProject(WorkflowJob.class, "us");
+            us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
+            us.addProperty(new BuildDiscarderProperty(new LogRotator(-1, upstreamNumToKeep, -1, -1)));
+            r.buildAndAssertSuccess(us);
+            r.buildAndAssertSuccess(us);
+        });
+        sessions.then(r -> {
+            try (var logging = new LogRecorder().record("org.jenkinsci.plugins.workflow", Level.WARNING).capture(100)) {
+                r.buildAndAssertSuccess(r.jenkins.getItemByFullName("us", WorkflowJob.class));
+                assertThat(logging, not(recorded(Level.WARNING, anyOf(any(String.class), nullValue()))));
+            }
+        });
     }
 
 }
