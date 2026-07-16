@@ -281,7 +281,7 @@ class BuildTriggerStepTest {
         FreeStyleProject p2 = r.createFreeStyleProject("test2");
         p2.getBuildersList().add(new SleepBuilder(1));
 
-        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("""
                 parallel(test1: {
                           build('test1');
@@ -300,7 +300,7 @@ class BuildTriggerStepTest {
         FreeStyleProject p = r.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
-        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("""
                 build('test1');
                 """, true));
@@ -350,7 +350,7 @@ class BuildTriggerStepTest {
         FreeStyleProject p = r.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
-        WorkflowJob foo = j.jenkins.createProject(WorkflowJob.class, "foo");
+        WorkflowJob foo = r.jenkins.createProject(WorkflowJob.class, "foo");
         foo.setDefinition(new CpsFlowDefinition("""
                 build('test1');
                 """, true));
