@@ -32,7 +32,7 @@ import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.model.queue.QueueTaskFuture;
 import hudson.util.StreamTaskListener;
-import java.io.IOException;
+
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 
 import jenkins.branch.MultiBranchProjectFactory;
 import jenkins.branch.MultiBranchProjectFactoryDescriptor;
@@ -55,6 +54,7 @@ import jenkins.scm.impl.mock.MockSCMDiscoverBranches;
 import jenkins.scm.impl.mock.MockSCMNavigator;
 import jenkins.security.QueueItemAuthenticatorConfiguration;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -72,16 +72,15 @@ import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import org.jenkinsci.plugins.workflow.test.steps.SemaphoreStep;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.BuildWatcher;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.jvnet.hudson.test.CaptureEnvironmentBuilder;
 import org.jvnet.hudson.test.FailureBuilder;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
 import org.jvnet.hudson.test.MockAuthorizationStrategy;
 import org.jvnet.hudson.test.MockFolder;
 import org.jvnet.hudson.test.MockQueueItemAuthenticator;
@@ -89,29 +88,38 @@ import org.jvnet.hudson.test.SleepBuilder;
 import org.jvnet.hudson.test.TestBuilder;
 import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.UnstableBuilder;
+import org.jvnet.hudson.test.junit.jupiter.BuildWatcherExtension;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assume.assumeThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
-public class BuildTriggerStepTest {
+@WithJenkins
+class BuildTriggerStepTest {
 
-    @ClassRule public static BuildWatcher buildWatcher = new BuildWatcher();
-    @Rule public JenkinsRule j = new JenkinsRule();
-    @Rule public LoggerRule logging = new LoggerRule();
+    @SuppressWarnings("unused")
+    @RegisterExtension
+    private static final BuildWatcherExtension BUILD_WATCHER = new BuildWatcherExtension();
 
-    @Before public void runQuickly() throws IOException {
+    private final LogRecorder logging = new LogRecorder();
+
+    private JenkinsRule j;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) throws Exception {
+        j = rule;
         j.jenkins.setQuietPeriod(0);
     }
 
     @Issue("JENKINS-25851")
-    @Test public void buildTopLevelProject() throws Exception {
+    @Test
+    void buildTopLevelProject() throws Exception {
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
@@ -124,7 +132,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-25851")
-    @Test public void failingBuild() throws Exception {
+    @Test
+    void failingBuild() throws Exception {
         j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
@@ -134,7 +143,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-70623")
-    @Test public void failingBuildWithWarningAction() throws Exception {
+    @Test
+    void failingBuildWithWarningAction() throws Exception {
         j.createFreeStyleProject("ds").getBuildersList().add(new FailureBuilder());
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
         upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
@@ -143,11 +153,12 @@ public class BuildTriggerStepTest {
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
         assertNotNull(action);
-        assertEquals(action.getResult(), Result.FAILURE);
+        assertEquals(Result.FAILURE, action.getResult());
     }
 
     @Issue("JENKINS-70623")
-    @Test public void unstableBuildWithWarningAction() throws Exception {
+    @Test
+    void unstableBuildWithWarningAction() throws Exception {
         j.createFreeStyleProject("ds").getBuildersList().add(new UnstableBuilder());
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
         upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
@@ -156,11 +167,12 @@ public class BuildTriggerStepTest {
         FlowNode buildTriggerNode = findFirstNodeWithDescriptor(lastUpstream.getExecution(), BuildTriggerStep.DescriptorImpl.class);
         WarningAction action = buildTriggerNode.getAction(WarningAction.class);
         assertNotNull(action);
-        assertEquals(action.getResult(), Result.UNSTABLE);
+        assertEquals(Result.UNSTABLE, action.getResult());
     }
 
     @Issue("JENKINS-70623")
-    @Test public void successBuildNoWarningAction() throws Exception {
+    @Test
+    void successBuildNoWarningAction() throws Exception {
         j.createFreeStyleProject("ds");
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "us");
         upstream.setDefinition(new CpsFlowDefinition("build(job: 'ds')", true));
@@ -172,7 +184,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-60995")
-    @Test public void upstreamCause() throws Exception {
+    @Test
+    void upstreamCause() throws Exception {
         FreeStyleProject downstream = j.createFreeStyleProject("downstream");
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
 
@@ -195,7 +208,7 @@ public class BuildTriggerStepTest {
             upstreamCauses.addAll(downstreamRun.getCauses().stream()
                 .filter(BuildUpstreamCause.class::isInstance)
                 .map(BuildUpstreamCause.class::cast)
-                .collect(Collectors.toList()));
+                .toList());
         }
         assertThat("There should be as many upstream causes as upstream builds", upstreamCauses, hasSize(numberOfUpstreamBuilds));
 
@@ -205,15 +218,14 @@ public class BuildTriggerStepTest {
             ups.add(upstreamRun);
             FlowExecution execution = upstreamRun.getExecution();
             FlowNode buildTriggerNode = findFirstNodeWithDescriptor(execution, BuildTriggerStep.DescriptorImpl.class);
-            assertEquals("node id should be build trigger node", buildTriggerNode, execution.getNode(up.getNodeId()));
+            assertEquals(buildTriggerNode, execution.getNode(up.getNodeId()), "node id should be build trigger node");
         }
-        assertEquals("There should be as many upstream causes as referenced upstream builds", numberOfUpstreamBuilds, ups.size());
+        assertEquals(numberOfUpstreamBuilds, ups.size(), "There should be as many upstream causes as referenced upstream builds");
     }
 
     static FlowNode findFirstNodeWithDescriptor(FlowExecution execution, Class<BuildTriggerStep.DescriptorImpl> cls) {
         for (FlowNode node : new FlowGraphWalker(execution)) {
-            if (node instanceof StepAtomNode) {
-                StepAtomNode stepAtomNode = (StepAtomNode) node;
+            if (node instanceof StepAtomNode stepAtomNode) {
                 if (cls.isInstance(stepAtomNode.getDescriptor())) {
                     return stepAtomNode;
                 }
@@ -223,7 +235,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-38339")
-    @Test public void upstreamNodeAction() throws Exception {
+    @Test
+    void upstreamNodeAction() throws Exception {
         FreeStyleProject downstream = j.createFreeStyleProject("downstream");
         WorkflowJob upstream = j.jenkins.createProject(WorkflowJob.class, "upstream");
 
@@ -238,16 +251,16 @@ public class BuildTriggerStepTest {
         assertNotNull(buildTriggerNode);
 
         List<BuildUpstreamNodeAction> actions = lastDownstreamRun.getActions(BuildUpstreamNodeAction.class);
-        assertEquals("action count", 1, actions.size());
+        assertEquals(1, actions.size(), "action count");
 
         BuildUpstreamNodeAction action = actions.get(0);
-        assertEquals("correct upstreamRunId", action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId());
-        assertEquals("valid upstreamNodeId", buildTriggerNode, execution.getNode(action.getUpstreamNodeId()));
+        assertEquals(action.getUpstreamRunId(), lastUpstreamRun.getExternalizableId(), "correct upstreamRunId");
+        assertEquals(buildTriggerNode, execution.getNode(action.getUpstreamNodeId()), "valid upstreamNodeId");
     }
 
     @SuppressWarnings("deprecation")
     @Test
-    public void buildFolderProject() throws Exception {
+    void buildFolderProject() throws Exception {
         MockFolder dir1 = j.createFolder("dir1");
         FreeStyleProject downstream = dir1.createProject(FreeStyleProject.class, "downstream");
         downstream.getBuildersList().add(new SleepBuilder(1));
@@ -261,7 +274,7 @@ public class BuildTriggerStepTest {
     }
 
     @Test
-    public void buildParallelTests() throws Exception {
+    void buildParallelTests() throws Exception {
         FreeStyleProject p1 = j.createFreeStyleProject("test1");
         p1.getBuildersList().add(new SleepBuilder(1));
 
@@ -283,7 +296,7 @@ public class BuildTriggerStepTest {
 
 
     @Test
-    public void abortBuild() throws Exception {
+    void abortBuild() throws Exception {
         FreeStyleProject p = j.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
@@ -310,7 +323,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-49073")
-    @Test public void downstreamResult() throws Exception {
+    @Test
+    void downstreamResult() throws Exception {
         downstreamResult(Result.SUCCESS);
         downstreamResult(Result.UNSTABLE);
         downstreamResult(Result.FAILURE);
@@ -332,7 +346,7 @@ public class BuildTriggerStepTest {
     }
 
     @Test
-    public void cancelBuildQueue() throws Exception {
+    void cancelBuildQueue() throws Exception {
         FreeStyleProject p = j.createFreeStyleProject("test1");
         p.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
 
@@ -358,7 +372,8 @@ public class BuildTriggerStepTest {
     }
 
     /** Interrupting the flow ought to interrupt its downstream builds too, even across nested parallel branches. */
-    @Test public void interruptFlow() throws Exception {
+    @Test
+    void interruptFlow() throws Exception {
         FreeStyleProject ds1 = j.createFreeStyleProject("ds1");
         ds1.getBuildersList().add(new SleepBuilder(Long.MAX_VALUE));
         FreeStyleProject ds2 = j.createFreeStyleProject("ds2");
@@ -371,25 +386,25 @@ public class BuildTriggerStepTest {
         j.jenkins.setNodes(j.jenkins.getNodes()); // TODO https://github.com/jenkinsci/jenkins/pull/1596 renders this workaround unnecessary
         WorkflowRun usb = us.scheduleBuild2(0).getStartCondition().get();
         assertEquals(1, usb.getNumber());
-        FreeStyleBuild ds1b, ds2b, ds3b;
-        while ((ds1b = ds1.getLastBuild()) == null || (ds2b = ds2.getLastBuild()) == null || (ds3b = ds3.getLastBuild()) == null) {
-            Thread.sleep(100);
-        }
-        assertEquals(1, ds1b.getNumber());
-        assertEquals(1, ds2b.getNumber());
-        assertEquals(1, ds3b.getNumber());
+
+        await().until(() -> (ds1.getLastBuild() != null && ds2.getLastBuild() != null && ds3.getLastBuild() != null));
+
+        assertEquals(1, ds1.getLastBuild().getNumber());
+        assertEquals(1, ds2.getLastBuild().getNumber());
+        assertEquals(1, ds3.getLastBuild().getNumber());
         // Same as X button in UI.
         // Should be the same as, e.g., GerritTrigger.RunningJobs.cancelJob, which calls Executor.interrupt directly.
         // (Not if the Executor.currentExecutable is an AfterRestartTask.Body, though in that case probably the FreeStyleBuild would have been killed by restart anyway!)
         usb.doStop();
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(usb));
-        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds1b));
-        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds2b));
-        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds3b));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds1.getLastBuild()));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds2.getLastBuild()));
+        j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(ds3.getLastBuild()));
     }
 
     @Issue("JENKINS-31902")
-    @Test public void interruptFlowDownstreamFlow() throws Exception {
+    @Test
+    void interruptFlowDownstreamFlow() throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition("semaphore 'ds'", true));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -404,7 +419,8 @@ public class BuildTriggerStepTest {
         j.assertBuildStatus(Result.ABORTED, j.waitForCompletion(dsb));
     }
 
-    @Test public void interruptFlowNonPropagate() throws Exception {
+    @Test
+    void interruptFlowNonPropagate() throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition("semaphore 'ds'", true));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -420,7 +436,8 @@ public class BuildTriggerStepTest {
     }
 
     @SuppressWarnings("deprecation")
-    @Test public void triggerWorkflow() throws Exception {
+    @Test
+    void triggerWorkflow() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
@@ -430,7 +447,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-31897")
-    @Test public void parameters() throws Exception {
+    @Test
+    void parameters() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         FreeStyleProject ds = j.jenkins.createProject(FreeStyleProject.class, "ds");
         ds.addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("branch", "master"), new BooleanParameterDefinition("extra", false, null)));
@@ -457,14 +475,16 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-26123")
-    @Test public void noWait() throws Exception {
+    @Test
+    void noWait() throws Exception {
         j.createFreeStyleProject("ds").setAssignedLabel(Label.get("nonexistent"));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
         j.buildAndAssertSuccess(us);
     }
 
-    @Test public void waitForStart() throws Exception {
+    @Test
+    void waitForStart() throws Exception {
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.getBuildersList().add(new FailureBuilder());
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -473,21 +493,26 @@ public class BuildTriggerStepTest {
         j.assertBuildStatus(Result.FAILURE, j.waitForCompletion(ds.getLastBuild()));
     }
 
-    @Test public void rejectedStart() throws Exception {
+    @Test
+    void rejectedStart() throws Exception {
         j.createFreeStyleProject("ds");
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         // wait: true also fails as expected w/o fix, just more slowly (test timeout):
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', wait: false", true));
         j.assertLogContains("Failed to trigger build of ds", j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
-    @TestExtension("rejectedStart") public static final class QDH extends Queue.QueueDecisionHandler {
-        @Override public boolean shouldSchedule(Queue.Task p, List<Action> actions) {
+
+    @TestExtension("rejectedStart")
+    public static final class QDH extends Queue.QueueDecisionHandler {
+        @Override
+        public boolean shouldSchedule(Queue.Task p, List<Action> actions) {
             return p instanceof WorkflowJob; // i.e., refuse FreestyleProject
         }
     }
 
     @Issue("JENKINS-25851")
-    @Test public void buildVariables() throws Exception {
+    @Test
+    void buildVariables() throws Exception {
         j.createFreeStyleProject("ds").addProperty(new ParametersDefinitionProperty(new StringParameterDefinition("param", "default")));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("echo \"build var: ${build(job: 'ds', parameters: [string(name: 'param', value: 'override')]).buildVariables.param}\"", true));
@@ -495,7 +520,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-29169")
-    @Test public void buildVariablesWorkflow() throws Exception {
+    @Test
+    void buildVariablesWorkflow() throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
         ds.setDefinition(new CpsFlowDefinition("env.RESULT = \"ds-${env.BUILD_NUMBER}\"", true));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -505,7 +531,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-28063")
-    @Test public void coalescedQueue() throws Exception {
+    @Test
+    void coalescedQueue() throws Exception {
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.setQuietPeriod(3);
         ds.setConcurrentBuild(true);
@@ -526,7 +553,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("http://stackoverflow.com/q/32228590/12916")
-    @Test public void nonCoalescedQueueParallel() throws Exception {
+    @Test
+    void nonCoalescedQueueParallel() throws Exception {
         j.jenkins.setNumExecutors(5);
         FreeStyleProject ds = j.createFreeStyleProject("ds");
         ds.setConcurrentBuild(true);
@@ -534,21 +562,23 @@ public class BuildTriggerStepTest {
         ds.getBuildersList().add(new SleepBuilder(3000));
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition(
-            "def branches = [:]\n" +
-            "for (int i = 0; i < 5; i++) {\n" +
-            "  def which = \"${i}\"\n" +
-            "  branches[\"branch${i}\"] = {\n" +
-            "    build job: 'ds', parameters: [string(name: 'which', value: which)]\n" +
-            "  }\n" +
-            "}\n" +
-            "parallel branches", true));
+                """
+                        def branches = [:]
+                        for (int i = 0; i < 5; i++) {
+                          def which = "${i}"
+                          branches["branch${i}"] = {
+                            build job: 'ds', parameters: [string(name: 'which', value: which)]
+                          }
+                        }
+                        parallel branches""", true));
         j.buildAndAssertSuccess(us);
         FreeStyleBuild ds1 = ds.getLastBuild();
         assertEquals(5, ds1.getNumber());
     }
 
     @Issue("JENKINS-39454")
-    @Test public void raceCondition() throws Exception {
+    @Test
+    void raceCondition() throws Exception {
         logging.record(BuildTriggerStepExecution.class.getPackage().getName(), Level.FINE).record(Queue.class, Level.FINE).record(Executor.class, Level.FINE);
         j.jenkins.setQuietPeriod(0);
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
@@ -559,7 +589,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-31897")
-    @Test public void defaultParameters() throws Exception {
+    @Test
+    void defaultParameters() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build job: 'ds', parameters: [string(name: 'PARAM1', value: 'first')]", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
@@ -571,7 +602,8 @@ public class BuildTriggerStepTest {
     }
 
     @LocalData
-    @Test public void storedForm() throws Exception {
+    @Test
+    void storedForm() throws Exception {
         WorkflowJob us = j.jenkins.getItemByFullName("us", WorkflowJob.class);
         WorkflowRun us1 = us.getBuildByNumber(1);
         WorkflowJob ds = j.jenkins.getItemByFullName("ds", WorkflowJob.class);
@@ -583,7 +615,7 @@ public class BuildTriggerStepTest {
 
     @Test
     @Issue("JENKINS-38887")
-    public void triggerOrgFolder() throws Exception {
+    void triggerOrgFolder() throws Exception {
         try (MockSCMController c = MockSCMController.create()) {
             c.createRepository("foo");
             WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -619,7 +651,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("SECURITY-433")
-    @Test public void permissions() throws Exception {
+    @Test
+    void permissions() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
@@ -642,14 +675,16 @@ public class BuildTriggerStepTest {
 
     @Issue("JENKINS-48632")
     @Test
-    public void parameterDescriptions() throws Exception {
+    void parameterDescriptions() throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
-        ds.setDefinition(new CpsFlowDefinition("properties([\n" +
-                "  parameters([\n" +
-                "    booleanParam(defaultValue: true, description: 'flag description', name: 'flag'),\n" +
-                "    string(defaultValue: 'default string', description: 'strParam description', name: 'strParam')\n" +
-                "  ])\n" +
-                "])\n", true));
+        ds.setDefinition(new CpsFlowDefinition("""
+                properties([
+                  parameters([
+                    booleanParam(defaultValue: true, description: 'flag description', name: 'flag'),
+                    string(defaultValue: 'default string', description: 'strParam description', name: 'strParam')
+                  ])
+                ])
+                """, true));
         // Define the parameters
         j.buildAndAssertSuccess(ds);
 
@@ -676,13 +711,15 @@ public class BuildTriggerStepTest {
 
     @Issue("JENKINS-52038")
     @Test
-    public void invalidChoiceParameterValue() throws Exception {
+    void invalidChoiceParameterValue() throws Exception {
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
-        ds.setDefinition(new CpsFlowDefinition("properties([\n" +
-                "  parameters([\n" +
-                "    choice(name:'letter', description: 'a letter', choices: ['a', 'b'].join(\"\\n\"))\n" +
-                "  ])\n" +
-                "])\n", true));
+        ds.setDefinition(new CpsFlowDefinition("""
+                properties([
+                  parameters([
+                    choice(name:'letter', description: 'a letter', choices: ['a', 'b'].join("\\n"))
+                  ])
+                ])
+                """, true));
         // Define the parameters
         j.buildAndAssertSuccess(ds);
 
@@ -692,7 +729,8 @@ public class BuildTriggerStepTest {
                 j.assertBuildStatus(Result.FAILURE, us.scheduleBuild2(0)));
     }
 
-    @Test public void snippetizerRoundTrip() throws Exception {
+    @Test
+    void snippetizerRoundTrip() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         BuildTriggerStep step = new BuildTriggerStep("downstream");
         st.assertRoundTrip(step, "build 'downstream'");
@@ -705,7 +743,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-26093")
-    @Test public void generateSnippetForBuildTrigger() throws Exception {
+    @Test
+    void generateSnippetForBuildTrigger() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         MockFolder d1 = j.createFolder("d1");
         FreeStyleProject ds = d1.createProject(FreeStyleProject.class, "ds");
@@ -717,7 +756,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-29739")
-    @Test public void generateSnippetForBuildTriggerSingle() throws Exception {
+    @Test
+    void generateSnippetForBuildTriggerSingle() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         FreeStyleProject ds = j.jenkins.createProject(FreeStyleProject.class, "ds1");
         FreeStyleProject us = j.jenkins.createProject(FreeStyleProject.class, "us1");
@@ -726,7 +766,8 @@ public class BuildTriggerStepTest {
         st.assertGenerateSnippet("{'stapler-class':'" + BuildTriggerStep.class.getName() + "', 'job':'ds1', 'parameter': {'name':'key', 'value':'stuff'}}", snippet, us.getAbsoluteUrl() + "configure");
     }
 
-    @Test public void generateSnippetForBuildTriggerNone() throws Exception {
+    @Test
+    void generateSnippetForBuildTriggerNone() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         FreeStyleProject ds = j.jenkins.createProject(FreeStyleProject.class, "ds0");
         FreeStyleProject us = j.jenkins.createProject(FreeStyleProject.class, "us0");
@@ -734,17 +775,18 @@ public class BuildTriggerStepTest {
     }
 
     @Test
-    public void buildStepDocs() throws Exception {
+    void buildStepDocs() throws Exception {
         try {
             SnippetizerTester.assertDocGeneration(BuildTriggerStep.class);
         } catch (Exception e) {
             // TODO: Jenkins 2.236+ broke structs-based databinding and introspection of PasswordParameterValue, JENKINS-62305.
-            assumeThat(e.getMessage(), not(containsString("There's no @DataBoundConstructor on any constructor of class hudson.util.Secret")));
+            assumeFalse(e.getMessage().contains("There's no @DataBoundConstructor on any constructor of class hudson.util.Secret"));
             throw e;
         }
     }
 
-    @Test public void automaticParameterConversion() throws Exception {
+    @Test
+    void automaticParameterConversion() throws Exception {
         // Downstream Job
         WorkflowJob ds = j.createProject(WorkflowJob.class);
         ds.addProperty(new ParametersDefinitionProperty(
@@ -752,8 +794,10 @@ public class BuildTriggerStepTest {
                 new BooleanParameterDefinition("my-boolean", false, "description")
         ));
         ds.setDefinition(new CpsFlowDefinition(
-                "echo('Password: ' + params['my-password'])\n" +
-                "echo('Boolean: ' + params['my-boolean'])\n", true));
+                """
+                        echo('Password: ' + params['my-password'])
+                        echo('Boolean: ' + params['my-boolean'])
+                        """, true));
         // Upstream Job
         WorkflowJob us = j.createProject(WorkflowJob.class);
         String def = "build(job: '" + ds.getName() + "', parameters: [%s])";
@@ -817,7 +861,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-62483")
-    @Test public void maintainParameterListOrder() throws Exception {
+    @Test
+    void maintainParameterListOrder() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         String params = "[string(name: 'PARAM1', value: 'p1'), " +
                 "string(name: 'PARAM2', value: 'p2'), " +
@@ -841,7 +886,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("JENKINS-62305")
-    @Test public void passwordParameter() throws Exception {
+    @Test
+    void passwordParameter() throws Exception {
         WorkflowJob ds = j.createProject(WorkflowJob.class);
         ds.addProperty(new ParametersDefinitionProperty(
                 new PasswordParameterDefinition("my-password", "", "")));
@@ -854,7 +900,8 @@ public class BuildTriggerStepTest {
         j.assertLogContains("Password: secret", ds.getBuildByNumber(1));
     }
 
-    @Test public void credentialsParameter() throws Exception {
+    @Test
+    void credentialsParameter() throws Exception {
         WorkflowJob ds = j.createProject(WorkflowJob.class);
         ds.addProperty(new ParametersDefinitionProperty(
                 new CredentialsParameterDefinition("my-credential", "", "", Credentials.class.getName(), false)));
@@ -868,7 +915,8 @@ public class BuildTriggerStepTest {
     }
 
     @Issue("SECURITY-2519")
-    @Test public void generateSnippetForBuildTriggerWhenDefaultPasswordParameterThenDoNotReturnRealPassword() throws Exception {
+    @Test
+    void generateSnippetForBuildTriggerWhenDefaultPasswordParameterThenDoNotReturnRealPassword() throws Exception {
         SnippetizerTester st = new SnippetizerTester(j);
         FreeStyleProject us = j.createProject(FreeStyleProject.class, "project1");
         us.addProperty(new ParametersDefinitionProperty(
@@ -881,7 +929,8 @@ public class BuildTriggerStepTest {
     }
 
     @LocalData
-    @Test public void downstreamFailureCauseSerialCompatibility() throws Exception {
+    @Test
+    void downstreamFailureCauseSerialCompatibility() throws Exception {
         // LocalData created as of eace550 with this test script:
         /*
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
@@ -904,7 +953,8 @@ public class BuildTriggerStepTest {
         assertThat(writer.toString(), containsString("DoWnStReAm #1 completed with status FAILURE"));
     }
 
-    @Test public void downstreamFailureCauseMessage() throws Exception {
+    @Test
+    void downstreamFailureCauseMessage() throws Exception {
         WorkflowJob us = j.jenkins.createProject(WorkflowJob.class, "us");
         us.setDefinition(new CpsFlowDefinition("build 'ds'", true));
         WorkflowJob ds = j.jenkins.createProject(WorkflowJob.class, "ds");
