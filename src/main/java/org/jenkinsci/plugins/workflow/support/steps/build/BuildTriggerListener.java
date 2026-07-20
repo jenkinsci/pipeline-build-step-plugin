@@ -83,7 +83,11 @@ public class BuildTriggerListener extends RunListener<Run<?,?>>{
     @Override
     public void onDeleted(final Run<?,?> run) {
         for (final BuildTriggerAction.Trigger trigger : BuildTriggerAction.triggersFor(run)) {
-            Timer.get().submit(() -> trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted")));
+            Timer.get().submit(() -> {
+                if (trigger.context.isReady()) {
+                    trigger.context.onFailure(new AbortException(run.getFullDisplayName() + " was deleted"));
+                }
+            });
         }
     }
 
