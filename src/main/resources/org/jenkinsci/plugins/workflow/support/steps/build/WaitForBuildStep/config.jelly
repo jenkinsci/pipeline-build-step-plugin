@@ -6,6 +6,9 @@
         <f:textbox/>
     </f:entry>
     <f:entry field="propagate">
-        <f:checkbox default="false" title="Propagate errors"/>
+        <f:checkbox default="false" title="Propagate errors (from other build)"/>
+    </f:entry>
+    <f:entry field="propagateAbort">
+        <f:checkbox default="false" title="Propagate abort (to other build)"/>
     </f:entry>
 </j:jelly>
