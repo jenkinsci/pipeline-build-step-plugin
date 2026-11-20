@@ -19,6 +19,11 @@ public class BuildTriggerCancelledCause extends CauseOfInterruption {
         this.cause = cause;
     }
 
+    private Object writeReplace() {
+        // InterruptedBuildAction persists this cause independently of BuildTriggerAction.
+        return new BuildTriggerCancelledCause(cause == null ? null : InterruptionSnapshot.copy(cause));
+    }
+
     @Override
     public String getShortDescription() {
         return "Calling Pipeline was cancelled";
