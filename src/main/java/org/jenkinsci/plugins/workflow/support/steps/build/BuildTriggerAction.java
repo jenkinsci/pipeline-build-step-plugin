@@ -41,6 +41,15 @@ class BuildTriggerAction extends InvisibleAction implements FoldableAction {
             this.waitForStart = waitForStart;
         }
 
+        private Object writeReplace() {
+            // CPS completion callbacks may still mutate the original throwable while this run saves.
+            // Only expose a detached graph to XStream; keep the live interruption for onFailure.
+            Trigger snapshot = new Trigger(context, propagate, waitForStart);
+            Throwable cause = interruption;
+            snapshot.interruption = cause == null ? null : InterruptionSnapshot.copy(cause);
+            return snapshot;
+        }
+
     }
 
     private /* final */ List<Trigger> triggers;
